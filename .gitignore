@@ -1,0 +1,24 @@
+# Dependencies / generated output
+node_modules/
+build/
+dist/
+.tmp/
+
+# Office / Excel generated files
+*.xls
+*.xlsx
+*.xlsm
+*.xlsb
+*.xlam
+~$*
+
+# Local artifacts
+*.log
+*.tmp
+*.zip
+*.bak
+*.old
+Downloads/
+.vscode/
+.DS_Store
+Thumbs.db

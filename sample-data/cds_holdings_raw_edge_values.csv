@@ -1,0 +1,5 @@
+"AccountName","AccountNumber","Description","Ticker","Unused","FMV","G/L $","Unused2","Cost Basis","Income","Yield","Quantity"
+"Edge Case Trust","XXXX-9999","Zero Market Value Position","AAPL","","0","0","","0","0","0","0"
+"Edge Case Trust","XXXX-9999","Negative Gain Position","MSFT","","10000","-2500","","12500","120","1.20","25.5"
+"Edge Case Trust","XXXX-9999","Comma Currency Position","NVDA","","$41,463.00","$21,200.00","","$20,263.00","$18.00","0.04","45"
+"Edge Case Trust","XXXX-9999","Blank Yield Position","DODGX","","81240","12200","","69040","1218.60","","1020.33"

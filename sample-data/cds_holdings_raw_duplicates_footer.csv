@@ -1,0 +1,7 @@
+"AccountName","AccountNumber","Description","Ticker","Unused","FMV","G/L $","Unused2","Cost Basis","Income","Yield","Quantity"
+"Duplicate Trust","XXXX-2003","Apple Inc Lot 1","AAPL","","10000.00","2500.00","","7500.00","60.00","0.60","50"
+"Duplicate Trust","XXXX-2003","Apple Inc Lot 2","AAPL","","12000.00","3200.00","","8800.00","72.00","0.60","60"
+"Duplicate Trust","XXXX-2003","Dodge & Cox Stock Fund","DODGX","","18000.00","2500.00","","15500.00","270.00","1.50","225"
+"Duplicate Trust","XXXX-2003","JPMorgan Government Money Market Fund","CJTXX","","5000.00","0","","5000.00","220.00","4.40","5000"
+""
+"Footer","Total rows in export may include non-holding notes"

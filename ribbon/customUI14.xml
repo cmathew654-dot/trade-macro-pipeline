@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui">
+  <ribbon>
+    <tabs>
+      <tab id="cdsTab" label="CDS Trade" insertAfterMso="TabHome">
+
+        <group id="grpAssistant" label="Assistant">
+          <button id="btnAssistant"
+                  label="Trade Assistant"
+                  size="large"
+                  imageMso="HappyFace"
+                  onAction="RunTradeAssistant"
+                  screentip="Open the CDS Trade Assistant"
+                  supertip="Open the state-aware control panel for processing, unknowns, scenarios, buy plans, email, and settings."/>
+        </group>
+
+        <group id="grpStart" label="Start">
+          <button id="btnProcess"
+                  label="Process Holdings"
+                  size="large"
+                  imageMso="ImportTextFile"
+                  onAction="RunProcess"
+                  screentip="Process raw CDS holdings"
+                  supertip="Preview and rebuild the active raw CDS export into the standard holdings report."/>
+        </group>
+
+        <group id="grpUnknowns" label="Unknowns">
+          <button id="btnSaveUnknowns"
+                  label="Save Unknowns"
+                  size="large"
+                  imageMso="AcceptInvitation"
+                  onAction="RunSaveUnknowns"
+                  screentip="Save unknown ticker classes"
+                  supertip="Validate every unknown ticker class, save the mappings, clear the review box, and refresh the report."/>
+        </group>
+
+        <group id="grpScenarios" label="Scenarios">
+          <button id="btnPlanSells"
+                  label="Plan Sells"
+                  size="large"
+                  imageMso="PivotTableInsert"
+                  onAction="RunPlanSells"
+                  screentip="Create the sell workbench"
+                  supertip="Preview and create the proposed sell workbench: one target raise amount, Pool/Manual/Exclude row choices, and live S2 proposed allocation."/>
+          <button id="btnAddScenarios"
+                  label="Add Scenarios"
+                  size="normal"
+                  imageMso="ScenarioManager"
+                  onAction="RunAddScenarios"
+                  screentip="Add the scenario model"
+                  supertip="Preview and add S1 pro-rata raise-cash scenario plus the scenario summary."/>
+          <button id="btnSpawn"
+                  label="Spawn Scenario"
+                  size="normal"
+                  imageMso="TableInsert"
+                  onAction="RunSpawn"
+                  screentip="Add another scenario"
+                  supertip="Preview and add the next manual scenario block for custom sells."/>
+          <button id="btnRemove"
+                  label="Remove Scenario"
+                  size="normal"
+                  imageMso="TableDelete"
+                  onAction="RunRemove"
+                  screentip="Remove a scenario"
+                  supertip="Preview, prompt for the scenario number, remove it, and renumber remaining scenarios."/>
+        </group>
+
+        <group id="grpBuyPlans" label="Buy Plans">
+          <button id="btnBuyPlans"
+                  label="Add Buy Plans"
+                  size="large"
+                  imageMso="ChartTypeColumnInsertGallery"
+                  onAction="RunBuyPlans"
+                  screentip="Add or refresh scenario buy plans"
+                  supertip="Preview and add buy-plan areas while preserving existing ticker and amount inputs."/>
+          <button id="btnCashOnly"
+                  label="Cash-Only Plan"
+                  size="normal"
+                  imageMso="CreateQueryFromWizard"
+                  onAction="RunCashOnlyBuyPlan"
+                  screentip="Deploy existing cash"
+                  supertip="Preview and create a separate Cash Buy Plan worksheet without touching scenarios."/>
+        </group>
+
+        <group id="grpEmail" label="Email">
+          <button id="btnEmail"
+                  label="Generate Email"
+                  size="large"
+                  imageMso="MessageOptions"
+                  onAction="RunEmail"
+                  screentip="Generate trade email"
+                  supertip="Preview and validate scenario trades, then show the confirmation before Outlook is used."/>
+        </group>
+
+        <group id="grpSettings" label="Settings">
+          <button id="btnOpenSettings"
+                  label="Open Settings"
+                  size="normal"
+                  imageMso="ControlPropertiesMenu"
+                  onAction="RunOpenSettings"
+                  screentip="Open CDS settings"
+                  supertip="Open the settings sheet for ticker mappings and defaults."/>
+          <button id="btnCloseSettings"
+                  label="Close Settings"
+                  size="normal"
+                  imageMso="FileSave"
+                  onAction="RunCloseSettings"
+                  screentip="Save and hide settings"
+                  supertip="Hide settings, refresh mappings, and save the macro workbook."/>
+        </group>
+
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>

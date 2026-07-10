@@ -255,7 +255,7 @@ Private Sub BuildWorkbenchRows(ws As Worksheet, dataStart As Long, dataEnd As Lo
     Dim modeValue As String
 
     For r = dataStart To dataEnd
-        modeValue = NormalizeSellMode(oldModes(r), ws.Cells(r, 1).Value)
+        modeValue = NormalizeSellMode(oldModes(r), ws.Cells(r, 1).Value, ws.Cells(r, 3).Value)
 
         With ws.Cells(r, modeCol)
             .Value = modeValue
@@ -332,22 +332,42 @@ Private Sub ApplyWorkbenchStatus(ws As Worksheet, dataStart As Long, dataEnd As 
     Dim usedRange As String
     Dim totalProposed As String
     Dim totalUsed As String
+    Dim shortfallExpr As String
+    Dim overageExpr As String
+    Dim cashAvailCell As String
 
     targetCell = "$" & ColLetterSell(targetInputCol) & "$2"
     proposedRange = "$" & ColLetterSell(proposedCol) & "$" & dataStart & ":$" & ColLetterSell(proposedCol) & "$" & dataEnd
     usedRange = "$" & ColLetterSell(usedCol) & "$" & dataStart & ":$" & ColLetterSell(usedCol) & "$" & dataEnd
     totalProposed = "SUM(" & proposedRange & ")"
     totalUsed = "SUM(" & usedRange & ")"
+    shortfallExpr = targetCell & "-" & totalProposed
+    overageExpr = totalProposed & "-" & targetCell
 
     With ws.Cells(3, statusCol)
         .Formula = "=IF(" & targetCell & "<=0,""Enter one target raise amount.""," & _
                    "IF(" & totalUsed & ">" & targetCell & ",""Manual sells exceed target; pool is zero.""," & _
-                   "IF(ABS(" & totalProposed & "-" & targetCell & ")>0.01,""Shortfall/overage: check proposed vs target.""," & _
-                   """OK: proposed sells match target."")))"
+                   "IF(" & shortfallExpr & ">0.5,""SHORTFALL: raise is short $""&TEXT(" & shortfallExpr & ",""#,##0"")&"" vs target""," & _
+                   "IF(" & overageExpr & ">0.5,""OVERAGE: proposed sells exceed target by $""&TEXT(" & overageExpr & ",""#,##0"")," & _
+                   """OK: proposed sells match target.""))))"
         .Font.Bold = True
         .Interior.Color = RGB(255, 242, 204)
         .Borders.LineStyle = xlContinuous
         .Borders.Weight = xlThin
+    End With
+
+    ' Shortfall state overrides the default amber status styling with red/bold.
+    On Error Resume Next
+    ws.Cells(3, statusCol).FormatConditions.Delete
+    On Error GoTo 0
+
+    Dim shortfallFC As FormatCondition
+    Set shortfallFC = ws.Cells(3, statusCol).FormatConditions.Add(Type:=xlExpression, _
+        Formula1:="=LEFT($" & ColLetterSell(statusCol) & "$3,9)=""SHORTFALL""")
+    With shortfallFC
+        .Font.Bold = True
+        .Font.Color = RGB(156, 0, 6)
+        .Interior.Color = RGB(255, 199, 206)
     End With
 
     ws.Cells(4, statusCol).Value = "Manual Used"
@@ -356,10 +376,23 @@ Private Sub ApplyWorkbenchStatus(ws As Worksheet, dataStart As Long, dataEnd As 
     ws.Cells(5, statusCol + 1).Formula = "=MAX(0," & targetCell & "-" & totalUsed & ")"
     ws.Cells(6, statusCol).Value = "Total Proposed"
     ws.Cells(6, statusCol + 1).Formula = "=" & totalProposed
+    ws.Cells(7, statusCol).Value = "Cash/MM Avail"
+    ws.Cells(7, statusCol + 1).Formula = "=SUMIF($A:$A,""CASH"",$E:$E)+SUMIF($A:$A,""SHORT"",$E:$E)"
 
-    ws.Range(ws.Cells(4, statusCol), ws.Cells(6, statusCol + 1)).Borders.LineStyle = xlContinuous
-    ws.Range(ws.Cells(4, statusCol), ws.Cells(6, statusCol)).Font.Bold = True
-    ws.Range(ws.Cells(4, statusCol + 1), ws.Cells(6, statusCol + 1)).NumberFormat = "$#,##0;($#,##0);""-"""
+    ws.Range(ws.Cells(4, statusCol), ws.Cells(7, statusCol + 1)).Borders.LineStyle = xlContinuous
+    ws.Range(ws.Cells(4, statusCol), ws.Cells(7, statusCol)).Font.Bold = True
+    ws.Range(ws.Cells(4, statusCol + 1), ws.Cells(7, statusCol + 1)).NumberFormat = "$#,##0;($#,##0);""-"""
+
+    ' Row 8: non-blocking advisory when the target could be covered by cash/MM alone.
+    cashAvailCell = "$" & ColLetterSell(statusCol + 1) & "$7"
+
+    With ws.Cells(8, statusCol)
+        .Formula = "=IF(AND(" & targetCell & "<=" & cashAvailCell & "," & targetCell & ">0),""Target <= available cash/MM - redemption may cover this without selling."","""")"
+        .Font.Italic = True
+        .Interior.Color = RGB(255, 242, 204)
+        .Borders.LineStyle = xlContinuous
+        .Borders.Weight = xlThin
+    End With
 End Sub
 
 Private Sub ApplyWorkbenchFormatting(ws As Worksheet, dataStart As Long, dataEnd As Long, _
@@ -436,7 +469,8 @@ Private Sub SetRangeLockedSafe(targetRange As Range, isLocked As Boolean)
     On Error GoTo 0
 End Sub
 
-Private Function NormalizeSellMode(valueIn As Variant, assetClassValue As Variant) As String
+Private Function NormalizeSellMode(valueIn As Variant, assetClassValue As Variant, _
+                                   Optional tickerValue As Variant = "") As String
     Dim s As String
     s = UCase(Trim(CStr(valueIn)))
 
@@ -449,6 +483,8 @@ Private Function NormalizeSellMode(valueIn As Variant, assetClassValue As Varian
             NormalizeSellMode = "Exclude"
         Case Else
             If UCase(Trim(CStr(assetClassValue))) = "CASH" Then
+                NormalizeSellMode = "Exclude"
+            ElseIf IsCUSIPSettings(CStr(tickerValue)) Then
                 NormalizeSellMode = "Exclude"
             Else
                 NormalizeSellMode = "Pool"

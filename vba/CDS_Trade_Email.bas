@@ -448,6 +448,7 @@ End If
     ' text first) see the generated email without Outlook running.
     If automationMode Then
         WriteEmailPreviewSheet ws.Parent, ws, subjectLine, plainText
+        OfferSaveSnapshot
         Exit Sub
     End If
 
@@ -478,6 +479,7 @@ End If
 
     Set olMail = Nothing
     Set olApp = Nothing
+    OfferSaveSnapshot
     Exit Sub
 
 ErrHandler:
@@ -723,4 +725,20 @@ Private Sub WriteEmailPreviewSheet(wb As Workbook, sourceWs As Worksheet, subjec
     previewWs.Cells(2, 1).Value = bodyText
 
     sourceWs.Activate
+End Sub
+
+' ============================================================
+' POST-EMAIL SNAPSHOT OFFER (W9)
+' ============================================================
+
+' Fires after both the Outlook .Display success path and the
+' AutomationMode preview success path. A snapshot is a values-only
+' archive of the plan that was just emailed - useful months later
+' ("how did we raise the 200k last time"). Never blocking: declining
+' just skips it. Headless shims answer vbYes, so tests exercise the
+' snapshot path here too.
+Private Sub OfferSaveSnapshot()
+    If MsgBox("Save a snapshot of this plan for the record?", vbYesNo + vbQuestion, "CDS Snapshot") = vbYes Then
+        SaveCDSSnapshot
+    End If
 End Sub

@@ -1,10 +1,10 @@
 # CDS Trade Assistant
 
-Excel VBA macros for turning a custodial holdings CSV into a reviewed CDS trade-planning workbook: holdings normalization, unknown ticker review, raise-cash scenarios, sell workbench, buy plans, math audit, and draft trade email generation.
+Excel VBA macros for turning a custodial holdings CSV into a reviewed CDS trade-planning workbook: holdings normalization, unknown ticker review, raise-cash scenarios, a sell workbench that speaks the client's language ($ / shares / % of position / % of account / sell-all), proceeds routing, buy plans, price staleness checks, math audit, draft trade email generation, and values-frozen snapshots for the record.
 
 I built this as a practicing financial advisor (Series 7/63/65) for a workflow where the advisor stays in Excel, reviews every assumption, and keeps final trade judgment manual.
 
-![VBA](https://img.shields.io/badge/Excel_VBA-8%2C300_lines-217346) ![Human-gated](https://img.shields.io/badge/trade_execution-always_manual-b58900) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
+![VBA](https://img.shields.io/badge/Excel_VBA-10%2C800_lines-217346) ![Human-gated](https://img.shields.io/badge/trade_execution-always_manual-b58900) ![Tested](https://img.shields.io/badge/headless_Excel_suite-8_scripts-2aa198) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 **Scenario summary and sell workbench** — a $20,000 raise planned against a synthetic portfolio: pooled sells auto-allocated, one manual override, one exclusion, tax impact and income lost computed per scenario.
 
@@ -19,10 +19,13 @@ flowchart LR
     A["Custodial CSV<br/>export"] --> B["1 · Process<br/>holdings"]
     B --> C["2 · Classify<br/>unknown tickers"]
     C --> D["3 · Raise-cash<br/>scenarios S1/S2"]
-    D --> E["4 · Sell workbench<br/>pool / manual / exclude"]
-    E --> F["5 · Buy plans"]
-    E --> G["6 · Math audit"]
-    G --> H["7 · Trade email<br/>draft for review"]
+    D --> E["4 · Sell workbench<br/>$ / shares / % / ALL"]
+    E --> R["5 · Proceeds routing<br/>buys / MM / transfer / hold"]
+    R --> F["6 · Buy plans"]
+    F --> G["7 · Math audit"]
+    G --> H["8 · Trade email<br/>draft for review"]
+    H --> S["9 · Snapshot<br/>frozen for the record"]
+    P["Live price check<br/>drift alerts"] -.-> E
 ```
 
 **1 — Processed holdings.** The raw export becomes a normalized sheet: asset-class grouping, gain/loss math, yield, an allocation pivot, and a short-position callout.
@@ -37,15 +40,19 @@ The full workbench in one strip: [docs/media/pipeline-full.png](docs/media/pipel
 
 ## What is included
 
-- `vba/CDS_Holdings_Processor.bas` - imports and normalizes raw holdings exports.
+- `vba/CDS_Holdings_Processor.bas` - imports and normalizes raw holdings exports; multi-account exports prompt for which account to process instead of silently blending.
 - `vba/CDS_Unknowns.bas` and `vba/CDS_Settings.bas` - review and maintain ticker classification rules.
 - `vba/CDS_Raise_Cash_Scenarios.bas` - creates S1/S2/S3 raise-cash scenarios.
-- `vba/CDS_Sell_Workbench.bas` - adds a worksheet-native sell planning workbench.
-- `vba/CDS_Buy_Plans.bas` - builds scenario-funded and cash-only buy plans.
-- `vba/CDS_Trade_Email.bas` - drafts a reviewed trade email; it does not send automatically.
-- `vba/CDS_MathAudit.bas` - audits workbook calculations after scenario and buy-plan workflows.
+- `vba/CDS_Sell_Workbench.bas` - worksheet-native sell planning: each manual sell can be expressed as dollars, share count, % of position, % of account, or ALL; shortfall and cash-available advisories; illiquid CUSIP positions default out of the pool.
+- `vba/CDS_Routing.bas` - PROCEEDS ROUTING table: declare how much of the raise funds buys, stays in money market, transfers out, or holds as cash, with reconciliation status.
+- `vba/CDS_Buy_Plans.bas` - builds scenario-funded and cash-only buy plans; the plan scenario funds from its routed allocation.
+- `vba/CDS_PriceGuard.bas` - checks live quotes (Excel Stocks linked data types) against the export's implied prices and flags drifted tickers; never modifies holdings values.
+- `vba/CDS_Trade_Email.bas` - drafts a reviewed trade email that narrates the instruction as given (shares/percent/sell-all language, routing destinations); refuses while routing does not reconcile; it does not send automatically.
+- `vba/CDS_Snapshots.bas` - freezes a plan to a values-only, protected SNAP sheet with a queryable CDS Snapshots index; exports snapshots to standalone .xlsx.
+- `vba/CDS_MathAudit.bas` - audits workbook calculations, amount-spec conversions, routing reconciliation, and flags wash-sale risk (loss sale reappearing in a buy plan).
 - `vba/CDS_MacroLauncher.bas`, `vba/CDS_AssistantLauncher.bas`, `vba/CDS_RibbonCallbacks.bas`, `vba/CDS_ButtonHandler.cls`, `vba/frmCDSTradeAssistant.frm`, and `ribbon/customUI14.xml` - modeless form and Ribbon entrypoints.
 - `sample-data/*.csv` - synthetic holdings fixtures for testing parser and workbook behavior.
+- `tests/` - headless Excel regression suite (see Testing).
 
 ## Main entrypoints
 
@@ -55,9 +62,12 @@ The full workbench in one strip: [docs/media/pipeline-full.png](docs/media/pipel
 - `BuildSellWorkbench`
 - `SpawnScenario`
 - `RemoveScenario`
+- `BuildRoutingBlock`
 - `AddBuyPlans`
 - `AddCashOnlyBuyPlan`
+- `RefreshLivePrices`
 - `GenerateTradeEmail`
+- `SaveCDSSnapshot` / `ExportSnapshotToFile`
 - `AuditActiveCDSMath`
 - `SaveUnknownsAndRefresh`
 - `OpenSettings` / `CloseSettings`
@@ -66,9 +76,11 @@ The full workbench in one strip: [docs/media/pipeline-full.png](docs/media/pipel
 
 ## Safety model
 
-- Runs locally inside Excel; no backend and no external API calls.
+- Runs locally inside Excel; no backend and no external API calls. The optional live-price check uses Excel's built-in Stocks linked data types (Microsoft's own quote feed, requires a Microsoft 365 license that includes data types) and only ever reads quotes - imported holdings values are never modified.
 - Uses synthetic sample data in this repository; no real client holdings are included.
-- The email workflow prepares a draft/review surface only; it does not auto-send.
+- The email workflow prepares a draft/review surface only; it does not auto-send, and it refuses to generate while the proceeds routing does not reconcile.
+- The wash-sale flag covers this workbook only: a loss sale whose ticker reappears in a buy plan is flagged, but purchases in outside accounts (a 401(k), a spouse's account) are invisible to any tool working from a single holdings export. That boundary is by design and worth remembering.
+- Snapshots are values-only frozen copies - nothing on a SNAP sheet recalculates, and the pipeline's state detection ignores them, so a months-old snapshot can never be mistaken for a live plan.
 - The workbook automation is designed around explicit advisor review before action.
 
 ## Using the source
@@ -79,14 +91,33 @@ The Ribbon XML in `ribbon/customUI14.xml` references callback wrappers in `CDS_R
 
 ## Testing
 
-Use the CSV fixtures in `sample-data/` to exercise the workflow without client data. A normal manual QA pass is:
+The repo ships a headless regression suite that drives a real Excel instance over the synthetic fixtures - no mocks, the actual macros run end to end and the suite asserts on the CDS_MATH_AUDIT results sheet and feature behavior.
+
+Requirements: Windows, Microsoft 365 Excel, Python 3 with `pywin32`, and Trust Center > Macro Settings > "Trust access to the VBA project object model" enabled.
+
+```
+python tests/run_pipeline.py                 # full pipeline, 169 audit checks
+python tests/run_pipeline.py --fixture sample-data/cds_holdings_raw_two_accounts.csv
+python tests/verify_amount_spec.py           # $/shares/%/ALL conversions
+python tests/verify_routing.py               # routing math + funding integration
+python tests/verify_guards.py                # shortfall, cash notice, CUSIP defaults, account picker
+python tests/verify_wash_flag.py             # wash-sale flagging
+python tests/verify_email.py                 # instruction-faithful email + refusal path
+python tests/verify_snapshots.py             # frozen snapshots + index
+python tests/verify_price_guard.py           # drift alerts (tolerates offline)
+```
+
+`tests/TestShims.bas` shadows `MsgBox`/`InputBox` during test runs so nothing blocks; it is never imported into a production workbook.
+
+A manual QA pass over the same fixtures:
 
 1. Open one of the raw holdings CSV fixtures in Excel.
 2. Run `ProcessCDSHoldings`.
 3. If unknown tickers are shown, classify them and run `SaveUnknownsAndRefresh`.
 4. Run `AddRaiseCashScenarios` and adjust scenario assumptions.
-5. Run `BuildSellWorkbench`, `AddBuyPlans`, and `AuditActiveCDSMath`.
-6. Run `GenerateTradeEmail` only after validating the workbook output.
+5. Run `BuildSellWorkbench`, set sell modes and amount specs, then `BuildRoutingBlock` and declare destinations.
+6. Run `AddBuyPlans` and `AuditActiveCDSMath`.
+7. Run `GenerateTradeEmail` only after validating the workbook output, and save a snapshot when prompted.
 
 ## Privacy
 

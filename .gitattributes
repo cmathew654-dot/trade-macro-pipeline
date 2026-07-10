@@ -1,0 +1,5 @@
+vba/*.bas text eol=crlf
+vba/*.cls text eol=crlf
+vba/*.frm text eol=crlf
+vba/*.frx binary
+tests/*.bas text eol=crlf

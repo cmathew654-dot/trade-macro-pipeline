@@ -23,7 +23,7 @@ Private Const MANUAL_HEADER As String = "Manual Sell $"
 Private Const PROPOSED_HEADER As String = "Proposed Sell $"
 Private Const USED_HEADER As String = "Manual Used $"
 Private Const STATUS_HEADER As String = "Plan Status"
-Private Const WORKBENCH_WIDTH As Long = 12
+Private Const WORKBENCH_WIDTH As Long = 15
 Private Const PLAN_SCENARIO_NUM As Long = 2
 
 Public Sub BuildSellWorkbench()
@@ -143,6 +143,15 @@ Private Sub BuildSellWorkbenchOnSheet(ws As Worksheet, headerRow As Long, dataSt
         End If
     Next r
 
+    ' Preserve any existing PROCEEDS ROUTING block before the workbench area
+    ' (which contains it) gets cleared below.
+    Dim routingFound As Boolean
+    Dim routDest() As Variant
+    Dim routDetail() As Variant
+    Dim routSpec() As Variant
+    Dim routAmt() As Variant
+    routingFound = CaptureRoutingRows(ws, routDest, routDetail, routSpec, routAmt)
+
     ClearExistingWorkbench ws, totalRow
 
     Dim summaryCol As Long
@@ -191,6 +200,10 @@ Private Sub BuildSellWorkbenchOnSheet(ws As Worksheet, headerRow As Long, dataSt
                          proposedCol, usedCol, statusCol
     ApplyWorkbenchFormatting ws, dataStart, dataEnd, workCol, targetInputCol, modeCol, _
                              specTypeCol, specAmtCol, manualCol, proposedCol, usedCol, statusCol
+
+    ' Always re-create the PROCEEDS ROUTING block below the status rows:
+    ' preserved values when present, defaults when not.
+    WriteRoutingBlock ws, statusCol, routingFound, routDest, routDetail, routSpec, routAmt
 End Sub
 
 Private Sub BuildWorkbenchHeader(ws As Worksheet, headerRow As Long, workCol As Long, _

@@ -34,6 +34,16 @@ Private Const EPS_DOLLARS As Double = 0.05
 Private Const EPS_PERCENT As Double = 0.000001
 Private Const CDS_PROTECT_PASSWORD As String = ""
 
+' W11: routing-aware funding + PROCEEDS ROUTING block layout. Mirrors the
+' constants in CDS_Routing.bas / CDS_Buy_Plans.bas ResolveScenarioFundingCellAddr.
+Private Const ROUTING_TITLE_MA As String = "PROCEEDS ROUTING"
+Private Const ROUTING_BUY_PLAN_DEST_MA As String = "Buy Plan"
+Private Const ROUTING_PLAN_SCENARIO_NUM As Long = 2
+Private Const ROUTING_TITLE_ROW_MA As Long = 10
+Private Const ROUTING_DATA_START_ROW_MA As Long = 12
+Private Const ROUTING_DATA_END_ROW_MA As Long = 16
+Private Const ROUTING_STATUS_ROW_MA As Long = 17
+
 Private mRows As Collection
 Private mPassCount As Long
 Private mFailCount As Long
@@ -99,6 +109,9 @@ Public Sub AuditActiveCDSMath()
 
     AuditMainHoldings ws, dataStart, dataEnd, totRow
     AuditBaseAllocationPivot ws, dataStart, dataEnd
+    AuditSellSpecs ws, dataStart, dataEnd, totRow
+    AuditShortfallCoherence ws
+    AuditRouting ws
 
     Dim scenCount As Long
     scenCount = CountScenariosLocal(ws)
@@ -117,6 +130,8 @@ Public Sub AuditActiveCDSMath()
 
         AuditScenarioSummary ws, scenCount, dataStart, dataEnd, totRow
     End If
+
+    AuditWashFlag ws, dataStart, dataEnd, totRow, scenCount
 
     WriteAuditResults srcWb.Name, ws.Name
 
@@ -708,7 +723,8 @@ Private Sub AuditSellContextForScenario(ws As Worksheet, scenNum As Long, dataSt
     If availableRow = 0 Then
         AuditLog "FAIL", "S" & scenNum & " Sell Context Available to Buy row", "Not found."
     Else
-        AuditNear "S" & scenNum & " Sell Context Available to Buy", ws.Cells(availableRow, scenCol + 2).Value, Num(ws.Cells(totRow, scenCol).Value), EPS_DOLLARS
+        AuditNear "S" & scenNum & " Sell Context Available to Buy", ws.Cells(availableRow, scenCol + 2).Value, _
+                  ResolveScenarioFundingValueForAudit(ws, scenNum, scenCol, totRow), EPS_DOLLARS
     End If
 End Sub
 
@@ -818,19 +834,24 @@ Private Sub AuditBuyPlanForScenario(ws As Worksheet, scenNum As Long, dataStart 
     AuditNear "S" & scenNum & " buy-plan total buys", ws.Cells(totalRow, scenCol + 1).Value, totalBuys, EPS_DOLLARS
     AuditNear "S" & scenNum & " buy-plan income gained", ws.Cells(incomeRow, scenCol + 1).Value, incomeGained, EPS_DOLLARS
 
-    Dim totalRaised As Double
-    totalRaised = Num(ws.Cells(totRow, scenCol).Value)
+    ' Funding basis: scenario's own Raise $ total, unless this is the plan
+    ' scenario (S2) and a PROCEEDS ROUTING block exists, in which case the
+    ' sheet's "Diff vs Raise" / "Available to Buy" cells are wired to the
+    ' routing block's "Buy Plan" row Routed $ instead (CDS_Buy_Plans.bas
+    ' ResolveScenarioFundingCellAddr). Mirror that resolution here.
+    Dim fundingValue As Double
+    fundingValue = ResolveScenarioFundingValueForAudit(ws, scenNum, scenCol, totRow)
 
-    AuditNear "S" & scenNum & " buy-plan diff vs raise", ws.Cells(diffRow, scenCol + 1).Value, totalRaised - totalBuys, EPS_DOLLARS
+    AuditNear "S" & scenNum & " buy-plan diff vs raise", ws.Cells(diffRow, scenCol + 1).Value, fundingValue - totalBuys, EPS_DOLLARS
 
-    If totalBuys > totalRaised + EPS_DOLLARS Then
+    If totalBuys > fundingValue + EPS_DOLLARS Then
         AuditLog "FAIL", "S" & scenNum & " buy plan overallocated", _
-                 "Buys exceed sells by " & FormatCurrency(totalBuys - totalRaised)
+                 "Buys exceed funding basis by " & FormatCurrency(totalBuys - fundingValue)
     End If
 
-    If totalBuys < totalRaised - EPS_DOLLARS Then
+    If totalBuys < fundingValue - EPS_DOLLARS Then
         AuditLog "WARN", "S" & scenNum & " buy plan underallocated", _
-                 "Buys are short by " & FormatCurrency(totalRaised - totalBuys) & _
+                 "Buys are short of funding basis by " & FormatCurrency(fundingValue - totalBuys) & _
                  ". Confirm residual proceeds are intentionally going to money market/cash."
     End If
 
@@ -895,6 +916,366 @@ Private Sub AuditPostRebalancePivot(ws As Worksheet, scenNum As Long, dataStart 
                  "Total buys differ from total raised. Residual proceeds need explicit review."
     End If
 End Sub
+
+' ============================================================
+' SELL SPEC AUDIT (W1/W11)
+'
+' Recomputes each row's Manual Sell $ from (mode, Amt Type, Amount, FMV,
+' Qty, report total FMV) per the workbench's own formula semantics
+' (CDS_Sell_Workbench.bas BuildWorkbenchRows manualCol formula) and flags
+' any row where the sheet value drifts from that recomputation.
+' ============================================================
+Private Sub AuditSellSpecs(ws As Worksheet, dataStart As Long, dataEnd As Long, totRow As Long)
+    Dim modeCol As Long
+    modeCol = FindWorkbenchModeCol(ws)
+
+    If modeCol = 0 Then
+        AuditLog "INFO", "Sell spec audit skipped", "No Sell Workbench found."
+        Exit Sub
+    End If
+
+    Dim specTypeCol As Long
+    Dim specAmtCol As Long
+    Dim manualCol As Long
+
+    specTypeCol = modeCol + 1
+    specAmtCol = modeCol + 2
+    manualCol = modeCol + 3
+
+    Dim totalFMV As Double
+    totalFMV = Num(ws.Cells(totRow, 5).Value)
+
+    Dim r As Long
+    Dim mismatchCount As Long
+    Dim firstMismatchDetail As String
+
+    For r = dataStart To dataEnd
+        Dim modeVal As String
+        Dim typeVal As String
+        Dim amtVal As Double
+        Dim fmv As Double
+        Dim qty As Double
+        Dim expectedManual As Double
+        Dim actualManual As Double
+
+        modeVal = Trim(CStr(ws.Cells(r, modeCol).Value))
+        typeVal = Trim(CStr(ws.Cells(r, specTypeCol).Value))
+        amtVal = Num(ws.Cells(r, specAmtCol).Value)
+        fmv = Num(ws.Cells(r, 5).Value)
+        qty = Num(ws.Cells(r, 11).Value)
+
+        If modeVal <> "Manual" Then
+            expectedManual = 0
+        ElseIf typeVal = "ALL" Then
+            expectedManual = fmv
+        ElseIf typeVal = "Shares" Then
+            If qty <> 0 Then
+                expectedManual = amtVal * (fmv / qty)
+            Else
+                expectedManual = 0
+            End If
+        ElseIf typeVal = "% Pos" Then
+            expectedManual = amtVal / 100 * fmv
+        ElseIf typeVal = "% Acct" Then
+            expectedManual = amtVal / 100 * totalFMV
+        Else
+            expectedManual = amtVal
+        End If
+
+        actualManual = Num(ws.Cells(r, manualCol).Value)
+
+        If Abs(actualManual - expectedManual) > EPS_DOLLARS Then
+            mismatchCount = mismatchCount + 1
+            If firstMismatchDetail = "" Then
+                firstMismatchDetail = "Row " & r & " ticker " & ws.Cells(r, 3).Value & _
+                    ": Actual=" & FormatCurrency(actualManual) & "; Expected=" & FormatCurrency(expectedManual)
+            End If
+        End If
+    Next r
+
+    If mismatchCount = 0 Then
+        AuditLog "PASS", "Sell spec Manual Sell $ matches mode/type/amount", "Rows " & dataStart & ":" & dataEnd & " all match."
+    Else
+        AuditLog "FAIL", "Sell spec Manual Sell $ matches mode/type/amount", _
+                 mismatchCount & " row(s) mismatch. First: " & firstMismatchDetail
+    End If
+End Sub
+
+' ============================================================
+' SHORTFALL COHERENCE AUDIT (W4/W11)
+'
+' The workbench status cell (row 3) shows a "SHORTFALL: ..." message via a
+' sheet formula/format condition when Target - TotalProposed > 0.5
+' (CDS_Sell_Workbench.bas ApplyWorkbenchStatus). Confirm the displayed
+' state agrees with an independent recomputation from the same two cells.
+' ============================================================
+Private Sub AuditShortfallCoherence(ws As Worksheet)
+    Dim modeCol As Long
+    modeCol = FindWorkbenchModeCol(ws)
+
+    If modeCol = 0 Then
+        AuditLog "INFO", "Shortfall coherence check skipped", "No Sell Workbench found."
+        Exit Sub
+    End If
+
+    Dim targetInputCol As Long
+    Dim statusCol As Long
+    targetInputCol = modeCol - 2
+    statusCol = modeCol + 7
+
+    Dim targetVal As Double
+    Dim totalProposed As Double
+    Dim statusText As String
+
+    targetVal = Num(ws.Cells(2, targetInputCol).Value)
+    totalProposed = Num(ws.Cells(6, statusCol + 1).Value)
+    statusText = CStr(ws.Cells(3, statusCol).Value)
+
+    Dim statusShowsShortfall As Boolean
+    Dim conditionShortfall As Boolean
+
+    statusShowsShortfall = (Left(statusText, 9) = "SHORTFALL")
+    conditionShortfall = (targetVal - totalProposed > 0.5)
+
+    If statusShowsShortfall = conditionShortfall Then
+        AuditLog "PASS", "Shortfall status agrees with target vs proposed", _
+                 "Status shortfall=" & statusShowsShortfall & "; Target-Proposed=" & FormatCurrency(targetVal - totalProposed)
+    Else
+        AuditLog "WARN", "Shortfall status agrees with target vs proposed", _
+                 "Status shortfall=" & statusShowsShortfall & " but Target-Proposed=" & FormatCurrency(targetVal - totalProposed)
+    End If
+End Sub
+
+' ============================================================
+' PROCEEDS ROUTING AUDIT (W2/W11)
+'
+' Validates the PROCEEDS ROUTING block (CDS_Routing.bas WriteRoutingBlock),
+' which lives at the same statusCol as the workbench status block starting
+' at ROUTING_TITLE_ROW_MA. Skips entirely (INFO) when no workbench or no
+' routing block is present on the sheet.
+' ============================================================
+Private Sub AuditRouting(ws As Worksheet)
+    Dim modeCol As Long
+    modeCol = FindWorkbenchModeCol(ws)
+
+    If modeCol = 0 Then
+        AuditLog "INFO", "Routing audit skipped", "No Sell Workbench found."
+        Exit Sub
+    End If
+
+    Dim statusCol As Long
+    statusCol = modeCol + 7
+
+    If UCase(Trim(CStr(ws.Cells(ROUTING_TITLE_ROW_MA, statusCol).Value))) <> UCase(ROUTING_TITLE_MA) Then
+        AuditLog "INFO", "Routing audit skipped", "No PROCEEDS ROUTING block found."
+        Exit Sub
+    End If
+
+    Dim destCol As Long, specCol As Long, routedCol As Long
+    destCol = statusCol
+    specCol = statusCol + 2
+    routedCol = statusCol + 4
+
+    Dim proceedsTotal As Double
+    proceedsTotal = Num(ws.Cells(6, statusCol + 1).Value)
+
+    Dim r As Long
+    Dim residualCount As Long
+    Dim sumRouted As Double
+    Dim negativeCount As Long
+    Dim negativeDetail As String
+
+    For r = ROUTING_DATA_START_ROW_MA To ROUTING_DATA_END_ROW_MA
+        Dim destVal As String
+        Dim specVal As String
+        Dim routedVal As Double
+
+        destVal = Trim(CStr(ws.Cells(r, destCol).Value))
+        specVal = Trim(CStr(ws.Cells(r, specCol).Value))
+        routedVal = Num(ws.Cells(r, routedCol).Value)
+
+        If destVal <> "" And specVal = "Residual" Then
+            residualCount = residualCount + 1
+        End If
+
+        sumRouted = sumRouted + routedVal
+
+        If routedVal < -EPS_DOLLARS Then
+            negativeCount = negativeCount + 1
+            If negativeDetail = "" Then negativeDetail = "Row " & r & ": " & FormatCurrency(routedVal)
+        End If
+    Next r
+
+    If residualCount = 1 Then
+        AuditLog "PASS", "Routing has exactly one Residual row", "Count=1."
+    Else
+        AuditLog "FAIL", "Routing has exactly one Residual row", _
+                 "Found " & residualCount & " Residual row(s) among rows with a Destination."
+    End If
+
+    AuditNear "Routing sum of Routed $ matches Total Proposed", sumRouted, proceedsTotal, 0.5
+
+    If negativeCount = 0 Then
+        AuditLog "PASS", "Routing Routed $ non-negative", "None negative."
+    Else
+        AuditLog "FAIL", "Routing Routed $ non-negative", negativeCount & " row(s) negative. First: " & negativeDetail
+    End If
+
+    Dim diff As Double
+    diff = sumRouted - proceedsTotal
+
+    Dim expectedStatus As String
+
+    If residualCount <> 1 Then
+        expectedStatus = "Need exactly one Residual row"
+    ElseIf Abs(diff) > 0.5 Then
+        If diff > 0 Then
+            expectedStatus = "Routing over-allocates by $" & Format(diff, "#,##0")
+        Else
+            expectedStatus = "Routing under-allocates by $" & Format(-diff, "#,##0")
+        End If
+    Else
+        expectedStatus = "Routing OK"
+    End If
+
+    Dim actualStatus As String
+    actualStatus = Trim(CStr(ws.Cells(ROUTING_STATUS_ROW_MA, destCol).Value))
+
+    If actualStatus = expectedStatus Then
+        AuditLog "PASS", "Routing status cell agrees with computed condition", "Status=" & actualStatus
+    Else
+        AuditLog "WARN", "Routing status cell agrees with computed condition", _
+                 "Cell=" & actualStatus & "; Computed=" & expectedStatus
+    End If
+End Sub
+
+' ============================================================
+' WASH-SALE FLAG AUDIT (W8)
+'
+' Warning-level only: for every report row with Proposed Sell $ > 0 and a
+' loss (G/L < 0), checks every scenario's BUY PLAN ticker cells for the
+' same ticker. On a match, logs a WARN and colors that buy-plan ticker
+' cell orange so it stands out on the sheet. Recoloring the same matched
+' cells the same color on every run keeps this idempotent.
+' ============================================================
+Private Sub AuditWashFlag(ws As Worksheet, dataStart As Long, dataEnd As Long, totRow As Long, scenCount As Long)
+    Dim modeCol As Long
+    modeCol = FindWorkbenchModeCol(ws)
+
+    If modeCol = 0 Then
+        AuditLog "INFO", "Wash-sale flag audit skipped", "No Sell Workbench found."
+        Exit Sub
+    End If
+
+    If scenCount = 0 Then
+        AuditLog "INFO", "Wash-sale flag audit skipped", "No scenarios/buy plans found."
+        Exit Sub
+    End If
+
+    Dim proposedCol As Long
+    proposedCol = modeCol + 4
+
+    Dim r As Long
+    Dim washCount As Long
+
+    For r = dataStart To dataEnd
+        Dim proposedAmt As Double
+        Dim gl As Double
+        Dim ticker As String
+
+        proposedAmt = Num(ws.Cells(r, proposedCol).Value)
+        gl = Num(ws.Cells(r, 6).Value)
+        ticker = UCase(Trim(CStr(ws.Cells(r, 3).Value)))
+
+        If proposedAmt > EPS_DOLLARS And gl < -EPS_DOLLARS And ticker <> "" Then
+            Dim sn As Long
+
+            For sn = 1 To scenCount
+                Dim scenCol As Long
+                Dim grandRow As Long
+                Dim buyPlanHeaderRow As Long
+
+                scenCol = ScenStartCol() + (sn - 1) * ScenStride()
+                grandRow = FindScenarioPivotGrandTotalRow(ws, scenCol, totRow)
+
+                If grandRow > 0 Then
+                    buyPlanHeaderRow = FindBuyPlanHeaderRow_Audit(ws, scenCol, grandRow)
+
+                    If buyPlanHeaderRow > 0 Then
+                        Dim inputStart As Long
+                        Dim inputEnd As Long
+                        Dim br As Long
+
+                        inputStart = buyPlanHeaderRow + 2
+                        inputEnd = inputStart + BuyPlanRows() - 1
+
+                        For br = inputStart To inputEnd
+                            If UCase(Trim(CStr(ws.Cells(br, scenCol).Value))) = ticker Then
+                                AuditLog "WARN", "Wash-sale risk", _
+                                         "Wash-sale risk: loss sale of " & ticker & " reappears in S" & sn & " buy plan"
+                                ws.Cells(br, scenCol).Interior.Color = RGB(255, 192, 96)
+                                washCount = washCount + 1
+                            End If
+                        Next br
+                    End If
+                End If
+            Next sn
+        End If
+    Next r
+
+    If washCount = 0 Then
+        AuditLog "PASS", "Wash-sale flag check", "No loss-sale tickers reappear in any buy plan."
+    End If
+End Sub
+
+' ============================================================
+' ROUTING-AWARE FUNDING RESOLUTION (W2/W11)
+'
+' Mirrors CDS_Buy_Plans.bas's ResolveScenarioFundingCellAddr (Private to
+' that module, so reimplemented here by header text lookup rather than
+' shared): when auditing the plan scenario (S2) and a PROCEEDS ROUTING
+' block exists, the funding basis for "Available to Buy" / "Diff vs
+' Raise" is the routing block's "Buy Plan" row Routed $ value instead of
+' the scenario's own Raise $ total.
+' ============================================================
+Private Function ResolveScenarioFundingValueForAudit(ws As Worksheet, scenNum As Long, scenCol As Long, totRow As Long) As Double
+    ResolveScenarioFundingValueForAudit = Num(ws.Cells(totRow, scenCol).Value)
+
+    If scenNum <> ROUTING_PLAN_SCENARIO_NUM Then Exit Function
+
+    Dim c As Range
+    Set c = FindCellExact(ws, ROUTING_TITLE_MA)
+    If c Is Nothing Then Exit Function
+
+    Dim dataStart As Long, dataEnd As Long, r As Long
+    dataStart = c.Row + 2
+    dataEnd = dataStart + 4
+
+    For r = dataStart To dataEnd
+        If UCase(Trim(CStr(ws.Cells(r, c.Column).Value))) = UCase(ROUTING_BUY_PLAN_DEST_MA) Then
+            ResolveScenarioFundingValueForAudit = Num(ws.Cells(r, c.Column + 4).Value)
+            Exit Function
+        End If
+    Next r
+End Function
+
+' ============================================================
+' WORKBENCH ANCHOR RESOLUTION (W1/W2/W8/W11)
+'
+' Sell Workbench columns sit at fixed offsets from workCol
+' (BuildSellWorkbenchOnSheet, CDS_Sell_Workbench.bas):
+'   targetInputCol=workCol+1, modeCol=workCol+3, specTypeCol=workCol+4,
+'   specAmtCol=workCol+5, manualCol=workCol+6, proposedCol=workCol+7,
+'   usedCol=workCol+8, statusCol=workCol+10. workCol itself moves with
+'   scenario count, so audits anchor on the "Sell Mode" header text
+'   (unique on the sheet) and use offsets relative to it instead of any
+'   hardcoded column number.
+' ============================================================
+Private Function FindWorkbenchModeCol(ws As Worksheet) As Long
+    Dim c As Range
+    Set c = FindCellExact(ws, "Sell Mode")
+    If Not c Is Nothing Then FindWorkbenchModeCol = c.Column
+End Function
 
 ' ============================================================
 ' LOOKUP HELPERS

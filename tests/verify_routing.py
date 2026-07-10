@@ -333,22 +333,13 @@ def main():
         for f in fails:
             print("  FAIL:", f)
 
-        # Known, expected gap: MathAudit.bas (W11, not yet implemented) still
-        # recomputes S2's "Available to Buy" / "Diff vs Raise" expectation
-        # from the scenario's raw Raise $ total, not routing-aware. With a
-        # non-default split (18000 funding vs 30000 raised) this surfaces
-        # exactly those 2 checks as FAIL. Confirm that's ALL that's failing
-        # (no unrelated regressions) rather than blindly asserting 0 FAIL.
-        expected_known_gap = {
-            f for f in fails
-            if "S2 Sell Context Available to Buy" in f or "S2 buy-plan diff vs raise" in f
-        }
-        unexpected_fails = [f for f in fails if f not in expected_known_gap]
-        assert_true("no FAILs beyond the known pre-W11 S2 routing/legacy audit gap",
-                    len(unexpected_fails) == 0, "; ".join(unexpected_fails) if unexpected_fails else "(none)")
-        assert_true("routing-vs-legacy audit gap present and explained (S2 Available to Buy)",
-                    any("S2 Sell Context Available to Buy" in f for f in fails) or s2_available == 30000,
-                    f"fails={fails}")
+        # W11: MathAudit.bas is now routing-aware -- S2's "Available to Buy" /
+        # "Diff vs Raise" expectation is resolved the same way the sheet
+        # itself resolves S2's funding (routing block's "Buy Plan" Routed $
+        # when a PROCEEDS ROUTING block exists), so the non-default split
+        # (18000 funding vs 30000 raised) should no longer surface any FAIL.
+        assert_true("no FAILs (routing-aware audit)", len(fails) == 0,
+                    "; ".join(fails) if fails else "(none)")
 
     except Exception:
         print("FULL TRACEBACK:\n" + traceback.format_exc())

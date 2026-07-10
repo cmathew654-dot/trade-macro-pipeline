@@ -52,6 +52,10 @@ Public Function RunMacroById(ByVal macroId As String) As Boolean
             PrepareCDSWorksheetForMacro ActiveSheet
             BuildSellWorkbench
 
+        Case "build_routing"
+            PrepareCDSWorksheetForMacro ActiveSheet
+            BuildRoutingBlock
+
         Case "spawn_scenario"
             PrepareCDSWorksheetForMacro ActiveSheet
             SpawnScenario
@@ -72,6 +76,15 @@ Public Function RunMacroById(ByVal macroId As String) As Boolean
 
         Case "generate_email"
             GenerateTradeEmail
+
+        Case "refresh_prices"
+            RefreshLivePrices
+
+        Case "save_snapshot"
+            SaveCDSSnapshot
+
+        Case "export_snapshot"
+            ExportSnapshotToFile
 
         Case "open_settings"
             OpenSettings
@@ -156,6 +169,13 @@ Public Function CanRunMacroById(ByVal macroId As String, ByRef reason As String)
                 reason = "Add raise-cash scenarios first."
             End If
 
+        Case "build_routing"
+            If SellWorkbenchExistsLocal(ws) Then
+                CanRunMacroById = True
+            Else
+                reason = "Create the sell workbench (Plan Sells) first."
+            End If
+
         Case "cash_only_buy_plan"
             If IsProcessedReportLocal(ws) And CountUnknownRowsLocal(ws) = 0 Then
                 CanRunMacroById = True
@@ -163,6 +183,29 @@ Public Function CanRunMacroById(ByVal macroId As String, ByRef reason As String)
                 reason = "Classify and save unknown tickers before creating a cash-only buy plan."
             Else
                 reason = "Process a CDS holdings export first."
+            End If
+
+        Case "refresh_prices"
+            If state = STATE_PROCESSED_CLEAN Or state = STATE_SCENARIOS Or state = STATE_BUY_PLANS Then
+                CanRunMacroById = True
+            Else
+                reason = "Process a CDS holdings export first."
+            End If
+
+        Case "save_snapshot"
+            If Left$(ws.Name, 5) = "SNAP " Then
+                reason = "This sheet is already a snapshot. Activate the live report sheet first."
+            ElseIf IsProcessedReportLocal(ws) Then
+                CanRunMacroById = True
+            Else
+                reason = "Activate a processed CDS report sheet first."
+            End If
+
+        Case "export_snapshot"
+            If Left$(ws.Name, 5) = "SNAP " Then
+                CanRunMacroById = True
+            Else
+                reason = "Activate a SNAP snapshot sheet first."
             End If
 
         Case Else
@@ -199,6 +242,10 @@ Public Function GetMacroPreviewById(ByVal macroId As String) As String
             GetMacroPreviewById = summary & vbCrLf & vbCrLf & _
                 "Action: create or refresh a Sell Workbench where you type one target raise amount, mark rows Pool/Manual/Exclude, and review the proposed S2 sell plan."
 
+        Case "build_routing"
+            GetMacroPreviewById = summary & vbCrLf & vbCrLf & _
+                "Action: Adds/rebuilds the PROCEEDS ROUTING table for the plan scenario: declare how much of the raise funds buys, stays in money market, transfers out, or holds as cash."
+
         Case "spawn_scenario"
             GetMacroPreviewById = summary & vbCrLf & vbCrLf & _
                 "Action: add the next manual scenario block for custom sells."
@@ -218,6 +265,18 @@ Public Function GetMacroPreviewById(ByVal macroId As String) As String
         Case "generate_email"
             GetMacroPreviewById = summary & vbCrLf & vbCrLf & _
                 "Action: validate scenario trades and show the trade-email confirmation before Outlook."
+
+        Case "refresh_prices"
+            GetMacroPreviewById = summary & vbCrLf & vbCrLf & _
+                "Action: Checks live quotes against the export's implied prices on a CDS Live Prices sheet and flags tickers drifted past the alert threshold. Never modifies holdings values."
+
+        Case "save_snapshot"
+            GetMacroPreviewById = summary & vbCrLf & vbCrLf & _
+                "Action: Freezes this plan to a values-only, protected SNAP sheet and logs it in the CDS Snapshots index for future reference."
+
+        Case "export_snapshot"
+            GetMacroPreviewById = summary & vbCrLf & vbCrLf & _
+                "Action: Saves the active snapshot sheet as a standalone .xlsx under Snapshots\."
 
         Case "open_settings"
             GetMacroPreviewById = "Action: open the CDS settings sheet for ticker mappings and defaults."
@@ -281,7 +340,11 @@ Public Function GetRecommendedMacroId() As String
         Case STATE_SCENARIOS
             GetRecommendedMacroId = "add_buy_plans"
         Case STATE_BUY_PLANS
-            GetRecommendedMacroId = "generate_email"
+            If RoutingBlockExistsLocal(ws) Then
+                GetRecommendedMacroId = "generate_email"
+            Else
+                GetRecommendedMacroId = "build_routing"
+            End If
     End Select
 
 Fallback:
@@ -293,11 +356,15 @@ Public Function MacroLabelById(ByVal macroId As String) As String
         Case "save_unknowns": MacroLabelById = "Save Unknowns + Refresh"
         Case "add_scenarios": MacroLabelById = "Add Scenarios"
         Case "plan_sells": MacroLabelById = "Plan Sells"
+        Case "build_routing": MacroLabelById = "Proceeds Routing"
         Case "spawn_scenario": MacroLabelById = "Spawn Scenario"
         Case "remove_scenario": MacroLabelById = "Remove Scenario"
         Case "add_buy_plans": MacroLabelById = "Add Buy Plans"
         Case "cash_only_buy_plan": MacroLabelById = "Cash-Only Buy Plan"
         Case "generate_email": MacroLabelById = "Generate Trade Email"
+        Case "refresh_prices": MacroLabelById = "Refresh Live Prices"
+        Case "save_snapshot": MacroLabelById = "Save Snapshot"
+        Case "export_snapshot": MacroLabelById = "Export Snapshot"
         Case "open_settings": MacroLabelById = "Open Settings"
         Case "close_settings": MacroLabelById = "Close Settings"
         Case Else: MacroLabelById = "Macro"
@@ -476,6 +543,25 @@ Private Function GetAccountLabelLocal(ByVal ws As Worksheet) As String
 
 Fallback:
     GetAccountLabelLocal = "-"
+End Function
+
+Private Function SellWorkbenchExistsLocal(ByVal ws As Worksheet) As Boolean
+    SellWorkbenchExistsLocal = Not (FindCellExactLocal(ws, "Sell Mode") Is Nothing)
+End Function
+
+Private Function RoutingBlockExistsLocal(ByVal ws As Worksheet) As Boolean
+    RoutingBlockExistsLocal = Not (FindCellExactLocal(ws, "PROCEEDS ROUTING") Is Nothing)
+End Function
+
+Private Function FindCellExactLocal(ByVal ws As Worksheet, ByVal textValue As String) As Range
+    On Error Resume Next
+    Set FindCellExactLocal = ws.Cells.Find(What:=textValue, _
+                                           LookIn:=xlValues, _
+                                           LookAt:=xlWhole, _
+                                           SearchOrder:=xlByRows, _
+                                           SearchDirection:=xlNext, _
+                                           MatchCase:=False)
+    On Error GoTo 0
 End Function
 
 Private Function FindHeaderRowLocal(ByVal ws As Worksheet) As Long

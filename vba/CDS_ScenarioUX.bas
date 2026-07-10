@@ -155,6 +155,7 @@ Public Sub ApplyScenarioUXRulesToSheet(ws As Worksheet)
     UnlockTaxInputs ws, totRow
     UnlockBuyPlanInputs ws, totRow, scenCount
     UnlockSellWorkbenchInputs ws, dataStart, dataEnd
+    UnlockRoutingInputs ws
 
     Application.Calculate
 
@@ -482,6 +483,50 @@ Private Sub UnlockSellWorkbenchInputs(ws As Worksheet, dataStart As Long, dataEn
 
 SafeExit:
 End Sub
+
+' ============================================================
+' PROCEEDS ROUTING UNLOCK
+'
+' CDS_Routing.bas writes Destination/Detail/Spec/Amount (rows 12-16)
+' unlocked when it builds the block, but ApplyScenarioUXRulesToSheet
+' locks the ENTIRE sheet on every run before re-unlocking known ranges.
+' Without this, routing inputs go read-only after the next macro run
+' (Spawn Scenario, Remove Scenario, Add Buy Plans). Routed $ and the
+' status row stay locked - they are formulas.
+' ============================================================
+
+Private Sub UnlockRoutingInputs(ws As Worksheet)
+    On Error GoTo SafeExit
+
+    Dim c As Range
+    Set c = FindRoutingTitleCell_UX(ws)
+
+    If c Is Nothing Then Exit Sub
+
+    Dim destCol As Long
+    destCol = c.Column
+
+    Dim dataStart As Long
+    Dim dataEnd As Long
+    dataStart = c.Row + 2
+    dataEnd = dataStart + 4
+
+    ws.Range(ws.Cells(dataStart, destCol), ws.Cells(dataEnd, destCol + 3)).Locked = False
+    ws.Range(ws.Cells(dataStart, destCol + 4), ws.Cells(dataEnd, destCol + 4)).Locked = True
+
+SafeExit:
+End Sub
+
+Private Function FindRoutingTitleCell_UX(ws As Worksheet) As Range
+    On Error Resume Next
+    Set FindRoutingTitleCell_UX = ws.Cells.Find(What:="PROCEEDS ROUTING", _
+                                                LookIn:=xlValues, _
+                                                LookAt:=xlWhole, _
+                                                SearchOrder:=xlByRows, _
+                                                SearchDirection:=xlNext, _
+                                                MatchCase:=False)
+    On Error GoTo 0
+End Function
 
 Private Function FindSellWorkbenchModeCol_UX(ws As Worksheet) As Long
     Dim c As Range

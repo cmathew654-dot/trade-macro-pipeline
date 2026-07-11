@@ -5,6 +5,10 @@ Public Sub RunTradeAssistant(ctl As IRibbonControl)
     OpenCDSTradeAssistant
 End Sub
 
+Public Sub RunNewSession(ctl As IRibbonControl)
+    RunMacroById "new_session"
+End Sub
+
 Public Sub RunProcess(ctl As IRibbonControl)
     RunMacroById "process_holdings"
 End Sub

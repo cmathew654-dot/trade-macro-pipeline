@@ -40,7 +40,7 @@ Private Const INDEX_TITLE As String = "CDS SNAPSHOT INDEX"
 ' SAVE SNAPSHOT
 ' ============================================================
 
-Public Sub SaveCDSSnapshot()
+Public Sub SaveCDSSnapshot(Optional ByVal noteText As String = "")
     Dim prevScreenUpdating As Boolean
     Dim prevCalculation As XlCalculation
 
@@ -120,7 +120,7 @@ Public Sub SaveCDSSnapshot()
     snapWs.Protect Password:="", DrawingObjects:=True, Contents:=True, Scenarios:=True
     On Error GoTo 0
 
-    AppendSnapshotIndexRow srcWs.Parent, snapWs, acctName, acctNum, targetRaise, totalProposed, scenarioCount, allocationStr
+    AppendSnapshotIndexRow srcWs.Parent, snapWs, acctName, acctNum, targetRaise, totalProposed, scenarioCount, allocationStr, noteText
 
     srcWs.Activate
 
@@ -327,7 +327,7 @@ End Function
 
 Private Sub AppendSnapshotIndexRow(wb As Workbook, snapWs As Worksheet, acctName As String, acctNum As String, _
                                    targetRaise As Variant, totalProposed As Variant, scenarioCount As Long, _
-                                   allocationStr As String)
+                                   allocationStr As String, Optional ByVal noteText As String = "")
     Dim idxWs As Worksheet
     Set idxWs = GetOrCreateSnapshotIndexSheet(wb)
 
@@ -357,7 +357,10 @@ Private Sub AppendSnapshotIndexRow(wb As Workbook, snapWs As Worksheet, acctName
 
     idxWs.Cells(r, 6).Value = scenarioCount
     idxWs.Cells(r, 7).Value = allocationStr
-    ' Column 8 (Notes) intentionally left blank for the advisor.
+
+    ' Column 8 (Notes): caller-supplied note (e.g. "session rollover") when
+    ' given, otherwise left blank for the advisor to fill in by hand.
+    If Trim(noteText) <> "" Then idxWs.Cells(r, 8).Value = noteText
 
     idxWs.Range(idxWs.Cells(r, 1), idxWs.Cells(r, 8)).Borders.LineStyle = xlContinuous
 End Sub

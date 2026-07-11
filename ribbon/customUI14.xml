@@ -15,6 +15,13 @@
         </group>
 
         <group id="grpStart" label="Start">
+          <button id="btnNewSession"
+                  label="New Session"
+                  size="large"
+                  imageMso="FileNew"
+                  onAction="RunNewSession"
+                  screentip="Start a new client session"
+                  supertip="Freeze the current live report to a dated snapshot, then import a fresh Client Center CSV and process it as the new live report."/>
           <button id="btnProcess"
                   label="Process Holdings"
                   size="large"

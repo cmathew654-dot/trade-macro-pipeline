@@ -49,10 +49,15 @@ The full workbench in one strip: [docs/media/pipeline-full.png](docs/media/pipel
 - `vba/CDS_PriceGuard.bas` - checks live quotes (Excel Stocks linked data types) against the export's implied prices and flags drifted tickers; never modifies holdings values.
 - `vba/CDS_Trade_Email.bas` - drafts a reviewed trade email that narrates the instruction as given (shares/percent/sell-all language, routing destinations); refuses while routing does not reconcile; it does not send automatically.
 - `vba/CDS_Snapshots.bas` - freezes a plan to a values-only, protected SNAP sheet with a queryable CDS Snapshots index; exports snapshots to standalone .xlsx.
+- `vba/CDS_Session.bas` - rolls a workbook from one meeting to the next: freezes the current live report, removes it, imports a fresh Client Center CSV as the new live report, and processes it.
 - `vba/CDS_MathAudit.bas` - audits workbook calculations, amount-spec conversions, routing reconciliation, and flags wash-sale risk (loss sale reappearing in a buy plan).
 - `vba/CDS_MacroLauncher.bas`, `vba/CDS_AssistantLauncher.bas`, `vba/CDS_RibbonCallbacks.bas`, `vba/CDS_ButtonHandler.cls`, `vba/frmCDSTradeAssistant.frm`, and `ribbon/customUI14.xml` - modeless form and Ribbon entrypoints.
 - `sample-data/*.csv` - synthetic holdings fixtures for testing parser and workbook behavior.
 - `tests/` - headless Excel regression suite (see Testing).
+
+## Per-client sessions
+
+Each workbook is meant to be one client's history file: a `CDS Snapshots` index sheet, a growing stack of frozen `SNAP` sheets, and exactly one live report at a time. `New Session` (`StartNewSession` in `vba/CDS_Session.bas`) freezes whatever report is currently live to a dated snapshot, removes it once the snapshot is verified to exist, then imports a fresh Client Center CSV as the new live report and processes it - the normal way to roll a workbook from one meeting to the next without losing history. On a fresh, empty workbook it just imports and processes, which is how a client file gets started. Filename discipline (which client the workbook belongs to) is still the advisor's job, not the macro's.
 
 ## Main entrypoints
 
@@ -68,6 +73,7 @@ The full workbench in one strip: [docs/media/pipeline-full.png](docs/media/pipel
 - `RefreshLivePrices`
 - `GenerateTradeEmail`
 - `SaveCDSSnapshot` / `ExportSnapshotToFile`
+- `StartNewSession`
 - `AuditActiveCDSMath`
 - `SaveUnknownsAndRefresh`
 - `OpenSettings` / `CloseSettings`
@@ -104,6 +110,7 @@ python tests/verify_guards.py                # shortfall, cash notice, CUSIP def
 python tests/verify_wash_flag.py             # wash-sale flagging
 python tests/verify_email.py                 # instruction-faithful email + refusal path
 python tests/verify_snapshots.py             # frozen snapshots + index
+python tests/verify_new_session.py           # per-client session rollover (freeze, remove, re-import)
 python tests/verify_price_guard.py           # drift alerts (tolerates offline)
 ```
 

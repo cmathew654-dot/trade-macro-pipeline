@@ -86,6 +86,9 @@ Public Function RunMacroById(ByVal macroId As String) As Boolean
         Case "export_snapshot"
             ExportSnapshotToFile
 
+        Case "new_session"
+            StartNewSession
+
         Case "open_settings"
             OpenSettings
 
@@ -208,6 +211,13 @@ Public Function CanRunMacroById(ByVal macroId As String, ByRef reason As String)
                 reason = "Activate a SNAP snapshot sheet first."
             End If
 
+        Case "new_session"
+            ' No workflow-state restriction: this is how a client file is
+            ' born, so it must be runnable on an empty/raw/processed sheet
+            ' alike. ActiveClientSheet above already enforced "a client
+            ' workbook is active and it isn't PERSONAL.XLSB."
+            CanRunMacroById = True
+
         Case Else
             reason = "Unknown macro id: " & macroId
     End Select
@@ -277,6 +287,10 @@ Public Function GetMacroPreviewById(ByVal macroId As String) As String
         Case "export_snapshot"
             GetMacroPreviewById = summary & vbCrLf & vbCrLf & _
                 "Action: Saves the active snapshot sheet as a standalone .xlsx under Snapshots\."
+
+        Case "new_session"
+            GetMacroPreviewById = summary & vbCrLf & vbCrLf & _
+                "Action: Freezes the current report as a dated snapshot, then imports a fresh Client Center CSV and processes it as the new live report."
 
         Case "open_settings"
             GetMacroPreviewById = "Action: open the CDS settings sheet for ticker mappings and defaults."
@@ -365,6 +379,7 @@ Public Function MacroLabelById(ByVal macroId As String) As String
         Case "refresh_prices": MacroLabelById = "Refresh Live Prices"
         Case "save_snapshot": MacroLabelById = "Save Snapshot"
         Case "export_snapshot": MacroLabelById = "Export Snapshot"
+        Case "new_session": MacroLabelById = "New Session (Import CSV)"
         Case "open_settings": MacroLabelById = "Open Settings"
         Case "close_settings": MacroLabelById = "Close Settings"
         Case Else: MacroLabelById = "Macro"

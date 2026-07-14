@@ -97,11 +97,19 @@ Sub ProcessCDSHoldings()
         If lr > scanEnd Then scanEnd = lr
     Next col
 
+    ' --- MULTI-ACCOUNT GUARD: raw export may contain more than one account ---
+    Dim filterAcctNum As String
+    If Not ResolveAccountFilter(ws, headerRow, scanEnd, filterAcctNum, acctName, acctNum) Then
+        GoTo Done
+    End If
+
     holdCount = 0
 
     For i = headerRow + 1 To scanEnd
         If Trim(CStr(ws.Cells(i, 3).Value)) <> "" Then
-            holdCount = holdCount + 1
+            If filterAcctNum = "" Or Trim(CStr(ws.Cells(i, 2).Value)) = filterAcctNum Then
+                holdCount = holdCount + 1
+            End If
         End If
     Next i
 
@@ -123,16 +131,18 @@ Sub ProcessCDSHoldings()
 
     For i = headerRow + 1 To scanEnd
         If Trim(CStr(ws.Cells(i, 3).Value)) <> "" Then
-            idx = idx + 1
+            If filterAcctNum = "" Or Trim(CStr(ws.Cells(i, 2).Value)) = filterAcctNum Then
+                idx = idx + 1
 
-            hDesc(idx) = Trim(CStr(ws.Cells(i, 3).Value))
-            hTicker(idx) = Trim(CStr(ws.Cells(i, 4).Value))
-            hFMV(idx) = SafeDouble(ws.Cells(i, 6).Value)
-            hGL(idx) = SafeDouble(ws.Cells(i, 7).Value)
-            hBasis(idx) = SafeDouble(ws.Cells(i, 9).Value)
-            hIncome(idx) = SafeDouble(ws.Cells(i, 10).Value)
-            hYield(idx) = SafeDouble(ws.Cells(i, 11).Value)
-            hQty(idx) = Trim(CStr(ws.Cells(i, 12).Value))
+                hDesc(idx) = Trim(CStr(ws.Cells(i, 3).Value))
+                hTicker(idx) = Trim(CStr(ws.Cells(i, 4).Value))
+                hFMV(idx) = SafeDouble(ws.Cells(i, 6).Value)
+                hGL(idx) = SafeDouble(ws.Cells(i, 7).Value)
+                hBasis(idx) = SafeDouble(ws.Cells(i, 9).Value)
+                hIncome(idx) = SafeDouble(ws.Cells(i, 10).Value)
+                hYield(idx) = SafeDouble(ws.Cells(i, 11).Value)
+                hQty(idx) = Trim(CStr(ws.Cells(i, 12).Value))
+            End If
         End If
     Next i
 
@@ -631,6 +641,78 @@ Private Function CleanQty(v As String) As Variant
     End If
 End Function
 
+' --- MULTI-ACCOUNT GUARD (shared by ProcessCDSHoldings / ProcessCDSHoldings_Lite) ---
+' Scans the raw data rows (same "col C non-empty" test the parsers already use to
+' skip footer/total rows) for distinct AccountNumber values. If more than one is
+' found, prompts the user to pick which account to process; filterAcctNum comes
+' back non-empty and callers must skip rows whose AccountNumber does not match.
+' Returns False when the caller should abort cleanly (cancel/blank/invalid pick).
+Private Function ResolveAccountFilter(ws As Worksheet, headerRow As Long, scanEnd As Long, _
+                                      ByRef filterAcctNum As String, ByRef acctName As String, _
+                                      ByRef acctNum As String) As Boolean
+    ResolveAccountFilter = True
+    filterAcctNum = ""
+
+    If scanEnd <= headerRow Then Exit Function
+
+    Dim distinctNums() As String, distinctNames() As String
+    Dim distinctCount As Long
+    Dim i As Long, j As Long, found As Boolean
+    Dim rowNum As String
+
+    ReDim distinctNums(1 To scanEnd - headerRow)
+    ReDim distinctNames(1 To scanEnd - headerRow)
+    distinctCount = 0
+
+    For i = headerRow + 1 To scanEnd
+        If Trim(CStr(ws.Cells(i, 3).Value)) <> "" Then
+            rowNum = Trim(CStr(ws.Cells(i, 2).Value))
+            If rowNum <> "" Then
+                found = False
+                For j = 1 To distinctCount
+                    If distinctNums(j) = rowNum Then
+                        found = True
+                        Exit For
+                    End If
+                Next j
+                If Not found Then
+                    distinctCount = distinctCount + 1
+                    distinctNums(distinctCount) = rowNum
+                    distinctNames(distinctCount) = Trim(CStr(ws.Cells(i, 1).Value))
+                End If
+            End If
+        End If
+    Next i
+
+    If distinctCount <= 1 Then Exit Function
+
+    Dim promptList As String
+    For i = 1 To distinctCount
+        promptList = promptList & i & ") " & distinctNames(i) & " (" & distinctNums(i) & ")" & vbCrLf
+    Next i
+
+    Dim answer As String
+    answer = InputBox("Multiple accounts found in this export. Enter the number of the account to process:" & _
+                       vbCrLf & vbCrLf & promptList, "Choose Account", Default:="1")
+
+    If Trim(answer) = "" Or Not IsNumeric(answer) Then
+        ResolveAccountFilter = False
+        Exit Function
+    End If
+
+    Dim pick As Long
+    pick = CLng(Val(answer))
+
+    If pick < 1 Or pick > distinctCount Then
+        ResolveAccountFilter = False
+        Exit Function
+    End If
+
+    filterAcctNum = distinctNums(pick)
+    acctName = distinctNames(pick)
+    acctNum = distinctNums(pick)
+End Function
+
 
 Public Sub ProcessCDSHoldings_Lite()
     Dim prevScreenUpdating As Boolean
@@ -705,11 +787,19 @@ Public Sub ProcessCDSHoldings_Lite()
         If lr > scanEnd Then scanEnd = lr
     Next col
 
+    ' --- MULTI-ACCOUNT GUARD: raw export may contain more than one account ---
+    Dim filterAcctNum As String
+    If Not ResolveAccountFilter(ws, headerRow, scanEnd, filterAcctNum, acctName, acctNum) Then
+        GoTo Done
+    End If
+
     holdCount = 0
 
     For i = headerRow + 1 To scanEnd
         If Trim(CStr(ws.Cells(i, 3).Value)) <> "" Then
-            holdCount = holdCount + 1
+            If filterAcctNum = "" Or Trim(CStr(ws.Cells(i, 2).Value)) = filterAcctNum Then
+                holdCount = holdCount + 1
+            End If
         End If
     Next i
 
@@ -732,16 +822,18 @@ Public Sub ProcessCDSHoldings_Lite()
 
     For i = headerRow + 1 To scanEnd
         If Trim(CStr(ws.Cells(i, 3).Value)) <> "" Then
-            idx = idx + 1
+            If filterAcctNum = "" Or Trim(CStr(ws.Cells(i, 2).Value)) = filterAcctNum Then
+                idx = idx + 1
 
-            hDesc(idx) = Trim(CStr(ws.Cells(i, 3).Value))
-            hTicker(idx) = Trim(CStr(ws.Cells(i, 4).Value))
-            hFMV(idx) = SafeDouble(ws.Cells(i, 6).Value)
-            hGL(idx) = SafeDouble(ws.Cells(i, 7).Value)
-            hBasis(idx) = SafeDouble(ws.Cells(i, 9).Value)
-            hIncome(idx) = SafeDouble(ws.Cells(i, 10).Value)
-            hYield(idx) = SafeDouble(ws.Cells(i, 11).Value)
-            hQty(idx) = Trim(CStr(ws.Cells(i, 12).Value))
+                hDesc(idx) = Trim(CStr(ws.Cells(i, 3).Value))
+                hTicker(idx) = Trim(CStr(ws.Cells(i, 4).Value))
+                hFMV(idx) = SafeDouble(ws.Cells(i, 6).Value)
+                hGL(idx) = SafeDouble(ws.Cells(i, 7).Value)
+                hBasis(idx) = SafeDouble(ws.Cells(i, 9).Value)
+                hIncome(idx) = SafeDouble(ws.Cells(i, 10).Value)
+                hYield(idx) = SafeDouble(ws.Cells(i, 11).Value)
+                hQty(idx) = Trim(CStr(ws.Cells(i, 12).Value))
+            End If
         End If
     Next i
 

@@ -27,7 +27,7 @@ Private mPrimaryMacroId As String
 Private Sub UserForm_Initialize()
     Me.Caption = "CDS Trade Assistant"
     Me.Width = 535
-    Me.Height = 655
+    Me.Height = 823
     Me.BackColor = RGB(22, 27, 31)
 
     Set mHandlers = New Collection
@@ -49,30 +49,39 @@ Private Sub BuildAssistantUI()
     AddButton "cmdPrimary", "Run Next Step", "primary", 16, 202, 485, 42, True
     AddButton "cmdRefresh", "Refresh Status", "refresh", 16, 254, 485, 24, False
 
-    AddLabel "lblStart", "START", 16, 292, 235, 18, True, 8, RGB(180, 197, 207)
-    AddButton "cmdProcess", "Process Holdings", "process_holdings", 16, 316, 235, 30, False
+    AddLabel "lblSession", "NEW SESSION", 16, 292, 485, 18, True, 8, RGB(180, 197, 207)
+    AddButton "cmdNewSession", "New Session (CSV)", "new_session", 16, 316, 485, 28, False
 
-    AddLabel "lblUnknowns", "UNKNOWNS", 266, 292, 235, 18, True, 8, RGB(180, 197, 207)
-    AddButton "cmdSaveUnknowns", "Save Unknowns + Refresh", "save_unknowns", 266, 316, 235, 30, False
+    AddLabel "lblStart", "START", 16, 352, 235, 18, True, 8, RGB(180, 197, 207)
+    AddButton "cmdProcess", "Process Holdings", "process_holdings", 16, 376, 235, 30, False
 
-    AddLabel "lblScenarios", "SCENARIOS", 16, 360, 235, 18, True, 8, RGB(180, 197, 207)
-    AddButton "cmdPlanSells", "Plan Sells", "plan_sells", 16, 384, 235, 28, False
-    AddButton "cmdAddScenarios", "Add Scenarios", "add_scenarios", 16, 418, 112, 28, False
-    AddButton "cmdSpawnScenario", "Spawn Scenario", "spawn_scenario", 139, 418, 112, 28, False
-    AddButton "cmdRemoveScenario", "Remove Scenario", "remove_scenario", 16, 452, 235, 28, False
+    AddLabel "lblUnknowns", "UNKNOWNS", 266, 352, 235, 18, True, 8, RGB(180, 197, 207)
+    AddButton "cmdSaveUnknowns", "Save Unknowns + Refresh", "save_unknowns", 266, 376, 235, 30, False
 
-    AddLabel "lblBuyPlans", "BUY PLANS", 266, 360, 235, 18, True, 8, RGB(180, 197, 207)
-    AddButton "cmdAddBuyPlans", "Add Buy Plans", "add_buy_plans", 266, 384, 235, 28, False
-    AddButton "cmdCashOnly", "Cash-Only Plan", "cash_only_buy_plan", 266, 418, 235, 28, False
+    AddLabel "lblScenarios", "SCENARIOS", 16, 420, 235, 18, True, 8, RGB(180, 197, 207)
+    AddButton "cmdPlanSells", "Plan Sells", "plan_sells", 16, 444, 235, 28, False
+    AddButton "cmdBuildRouting", "Proceeds Routing", "build_routing", 16, 478, 235, 28, False
+    AddButton "cmdAddScenarios", "Add Scenarios", "add_scenarios", 16, 512, 112, 28, False
+    AddButton "cmdSpawnScenario", "Spawn Scenario", "spawn_scenario", 139, 512, 112, 28, False
+    AddButton "cmdRemoveScenario", "Remove Scenario", "remove_scenario", 16, 546, 235, 28, False
 
-    AddLabel "lblEmail", "EMAIL", 16, 502, 235, 18, True, 8, RGB(180, 197, 207)
-    AddButton "cmdEmail", "Generate Trade Email", "generate_email", 16, 526, 235, 30, False
+    AddLabel "lblBuyPlans", "BUY PLANS", 266, 420, 235, 18, True, 8, RGB(180, 197, 207)
+    AddButton "cmdAddBuyPlans", "Add Buy Plans", "add_buy_plans", 266, 444, 235, 28, False
+    AddButton "cmdCashOnly", "Cash-Only Plan", "cash_only_buy_plan", 266, 478, 235, 28, False
 
-    AddLabel "lblSettings", "SETTINGS", 266, 502, 235, 18, True, 8, RGB(180, 197, 207)
-    AddButton "cmdOpenSettings", "Open Settings", "open_settings", 266, 526, 112, 30, False
-    AddButton "cmdCloseSettings", "Close Settings", "close_settings", 389, 526, 112, 30, False
+    AddLabel "lblEmail", "EMAIL", 16, 596, 235, 18, True, 8, RGB(180, 197, 207)
+    AddButton "cmdEmail", "Generate Trade Email", "generate_email", 16, 620, 235, 30, False
 
-    AddButton "cmdClose", "Close", "close", 16, 594, 485, 28, False
+    AddLabel "lblSettings", "SETTINGS", 266, 596, 235, 18, True, 8, RGB(180, 197, 207)
+    AddButton "cmdOpenSettings", "Open Settings", "open_settings", 266, 620, 112, 30, False
+    AddButton "cmdCloseSettings", "Close Settings", "close_settings", 389, 620, 112, 30, False
+
+    AddLabel "lblReference", "REFERENCE", 266, 662, 235, 18, True, 8, RGB(180, 197, 207)
+    AddButton "cmdRefreshPrices", "Refresh Live Prices", "refresh_prices", 266, 686, 235, 28, False
+    AddButton "cmdSaveSnapshot", "Save Snapshot", "save_snapshot", 266, 720, 112, 28, False
+    AddButton "cmdExportSnapshot", "Export Snapshot", "export_snapshot", 389, 720, 112, 28, False
+
+    AddButton "cmdClose", "Close", "close", 16, 762, 485, 28, False
 End Sub
 
 Private Sub AddStatusLabel(controlName As String, captionText As String, _
@@ -187,9 +196,11 @@ Private Sub RefreshAssistantStatus()
     End If
 
     UpdateButtonState "cmdPrimary", mPrimaryMacroId
+    UpdateButtonState "cmdNewSession", "new_session"
     UpdateButtonState "cmdProcess", "process_holdings"
     UpdateButtonState "cmdSaveUnknowns", "save_unknowns"
     UpdateButtonState "cmdPlanSells", "plan_sells"
+    UpdateButtonState "cmdBuildRouting", "build_routing"
     UpdateButtonState "cmdAddScenarios", "add_scenarios"
     UpdateButtonState "cmdSpawnScenario", "spawn_scenario"
     UpdateButtonState "cmdRemoveScenario", "remove_scenario"
@@ -198,6 +209,9 @@ Private Sub RefreshAssistantStatus()
     UpdateButtonState "cmdEmail", "generate_email"
     UpdateButtonState "cmdOpenSettings", "open_settings"
     UpdateButtonState "cmdCloseSettings", "close_settings"
+    UpdateButtonState "cmdRefreshPrices", "refresh_prices"
+    UpdateButtonState "cmdSaveSnapshot", "save_snapshot"
+    UpdateButtonState "cmdExportSnapshot", "export_snapshot"
 
     StyleUtilityButton "cmdRefresh"
     StyleUtilityButton "cmdClose"

@@ -34,7 +34,7 @@ import traceback
 import pythoncom
 import win32com.client
 
-REPO = r"C:\Users\Cyril\Projects\cds-trade-assistant"
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VBA_DIR = os.path.join(REPO, "vba")
 SHIMS = os.path.join(REPO, "tests", "TestShims.bas")
 FIXTURE = os.path.join(REPO, "sample-data", "cds_holdings_raw_actual_export_shape.csv")

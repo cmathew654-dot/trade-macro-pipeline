@@ -29,7 +29,7 @@ import traceback
 import pythoncom
 import win32com.client
 
-REPO = r"C:\Users\Cyril\Projects\cds-trade-assistant"
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TESTS_DIR = os.path.join(REPO, "tests")
 if TESTS_DIR not in sys.path:
     sys.path.insert(0, TESTS_DIR)

@@ -35,6 +35,11 @@ Option Explicit
 ' Constants kept as fallbacks; runtime uses settings values
 Private Const BUY_PLAN_INPUT_ROWS_DEFAULT As Long = 10
 
+' Plan scenario funding via CDS_Routing.bas's PROCEEDS ROUTING block
+Private Const ROUTING_TITLE_BP As String = "PROCEEDS ROUTING"
+Private Const ROUTING_PLAN_SCENARIO_NUM As Long = 2
+Private Const ROUTING_BUY_PLAN_DEST As String = "Buy Plan"
+
 Public Function BuyPlanRows() As Long
     BuyPlanRows = CLng(GetSettingNum("BuyPlanRows", BUY_PLAN_INPUT_ROWS_DEFAULT))
 End Function
@@ -122,6 +127,12 @@ Private Function BuildBuyPlanForScenario(ws As Worksheet, scenNum As Long, _
     Dim pivotEnd As Long
     pivotEnd = FindPivotGrandTotalRow(ws, startCol, totRow)
     If pivotEnd = 0 Then Exit Function
+
+    ' Funding basis for this scenario's "Available to Buy" / "Diff vs Raise".
+    ' Legacy = the scenario's own Raise $ total. Plan scenario (S2) switches to
+    ' the routing block's "Buy Plan" Routed $ cell when that block exists.
+    Dim fundingCellAddr As String
+    fundingCellAddr = ResolveScenarioFundingCellAddr(ws, scenNum, startCol, totRow)
 
     Dim rowsCount As Long
     rowsCount = BuyPlanRows()
@@ -375,7 +386,7 @@ Private Function BuildBuyPlanForScenario(ws As Worksheet, scenNum As Long, _
         .Borders.Weight = xlThin
     End With
     With ws.Cells(contextAvailableRow, startCol + 2)
-        .Formula = "=" & ColLetter(startCol) & totRow
+        .Formula = "=" & fundingCellAddr
         .Font.Bold = True
         .Font.Color = RGB(255, 255, 255)
         .NumberFormat = "$#,##0;($#,##0);""-"""
@@ -545,9 +556,6 @@ Private Function BuildBuyPlanForScenario(ws As Worksheet, scenNum As Long, _
         End With
     Next ec
 
-    Dim raiseCellAddr As String
-    raiseCellAddr = ColLetter(startCol) & totRow
-
     With ws.Cells(diffRow, startCol)
         .Value = "Diff vs Raise"
         .Font.Bold = True
@@ -557,7 +565,7 @@ Private Function BuildBuyPlanForScenario(ws As Worksheet, scenNum As Long, _
     End With
 
     With ws.Cells(diffRow, startCol + 1)
-        .Formula = "=" & raiseCellAddr & "-" & amtCL & totalRow
+        .Formula = "=" & fundingCellAddr & "-" & amtCL & totalRow
         .Font.Bold = True
         .Interior.Color = RGB(255, 242, 204)
         .NumberFormat = "$#,##0"" to MM"";[Red]($#,##0)"" OVER"";""Fully Allocated"""
@@ -806,6 +814,48 @@ End Function
 
 Private Function ColLetter(colNum As Long) As String
     ColLetter = Split(Columns(colNum).Address(, False), ":")(0)
+End Function
+
+' ============================================================
+' FUNDING CELL RESOLUTION
+'
+' Legacy: scenario's own Raise $ total (ColLetter(startCol) & totRow).
+' Plan scenario (S2) with a PROCEEDS ROUTING block present: the block's
+' "Buy Plan" row Routed $ cell instead. Both "Diff vs Raise" and
+' "Available to Buy" resolve through this single helper so they never
+' drift apart.
+' ============================================================
+Private Function ResolveScenarioFundingCellAddr(ws As Worksheet, scenNum As Long, _
+                                                 startCol As Long, totRow As Long) As String
+    Dim legacyAddr As String
+    legacyAddr = ColLetter(startCol) & totRow
+
+    ResolveScenarioFundingCellAddr = legacyAddr
+
+    If scenNum <> ROUTING_PLAN_SCENARIO_NUM Then Exit Function
+
+    Dim c As Range
+    On Error Resume Next
+    Set c = ws.Cells.Find(What:=ROUTING_TITLE_BP, _
+                          LookIn:=xlValues, _
+                          LookAt:=xlWhole, _
+                          SearchOrder:=xlByRows, _
+                          SearchDirection:=xlNext, _
+                          MatchCase:=False)
+    On Error GoTo 0
+
+    If c Is Nothing Then Exit Function
+
+    Dim dataStart As Long, dataEnd As Long, r As Long
+    dataStart = c.Row + 2
+    dataEnd = dataStart + 4
+
+    For r = dataStart To dataEnd
+        If UCase(Trim(CStr(ws.Cells(r, c.Column).Value))) = UCase(ROUTING_BUY_PLAN_DEST) Then
+            ResolveScenarioFundingCellAddr = "$" & ColLetter(c.Column + 4) & "$" & r
+            Exit Function
+        End If
+    Next r
 End Function
 
 Private Function MacroWorkbookFormulaPrefix() As String

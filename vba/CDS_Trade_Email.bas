@@ -24,6 +24,8 @@ Private Const DEFAULT_SHORT_TICKER_DEFAULT As String = "CJTXX"
 Private Const BUY_PLAN_ROWS_DEFAULT As Long = 10
 Private Const MAX_SHORT_POSITIONS As Long = 20
 Private Const RESIDUAL_TOLERANCE As Double = 0.5
+Private Const PLAN_SCENARIO_NUM As Long = 2
+Private Const ROUTING_DATA_ROWS As Long = 5
 
 Sub GenerateTradeEmail()
 Attribute GenerateTradeEmail.VB_ProcData.VB_Invoke_Func = "E\n14"
@@ -53,6 +55,9 @@ Attribute GenerateTradeEmail.VB_ProcData.VB_Invoke_Func = "E\n14"
     salutation = GetSetting("Salutation", "TT,")
     signoff = GetSetting("Signoff", "Thanks,")
     deskEmail = GetSetting("TradeDeskEmail", "")
+
+    Dim automationMode As Boolean
+    automationMode = (GetSetting("AutomationMode", "0") = "1")
 
     ' --- VALIDATE SHEET ---
     Dim headerRow As Long, dataStart As Long, dataEnd As Long, totRow As Long
@@ -107,12 +112,29 @@ Attribute GenerateTradeEmail.VB_ProcData.VB_Invoke_Func = "E\n14"
     acctNum = Trim(CStr(ws.Cells(1, 1).Value))
     acctName = Trim(CStr(ws.Cells(1, 2).Value))
 
+    ' Spec-faithful sell narration only applies to the plan scenario (S2)
+    ' when a Sell Workbench (Amt Type / Amount columns) exists on the
+    ' sheet. Other scenarios and legacy sheets keep the plain dollar
+    ' phrasing untouched.
+    Dim useSpecPhrasing As Boolean, modeColFound As Long
+    Dim specTypeColFound As Long, specAmtColFound As Long
+    useSpecPhrasing = False
+    If scenNum = PLAN_SCENARIO_NUM Then
+        modeColFound = FindModeColEmail(ws)
+        If modeColFound > 0 Then
+            specTypeColFound = modeColFound + 1
+            specAmtColFound = modeColFound + 2
+            useSpecPhrasing = True
+        End If
+    End If
+
     ' --- COLLECT SELLS ---
     Dim r As Long, i As Long
     Dim ticker As String, raiseAmt As Double, fmv As Double
     Dim totalRaised As Double, tradeCount As Long
     Dim sellLinesHTML As String, sellLinesPlain As String
     Dim fullLiqHTML As String, fullLiqPlain As String
+    Dim amtType As String, specAmtVal As Double, isForcedAll As Boolean
 
     For r = dataStart To dataEnd
         raiseAmt = 0
@@ -123,15 +145,53 @@ Attribute GenerateTradeEmail.VB_ProcData.VB_Invoke_Func = "E\n14"
             If IsNumeric(ws.Cells(r, 5).Value) Then fmv = CDbl(ws.Cells(r, 5).Value)
             tradeCount = tradeCount + 1
             totalRaised = totalRaised + raiseAmt
+
+            amtType = "": specAmtVal = 0
+            If useSpecPhrasing Then
+                amtType = Trim(CStr(ws.Cells(r, specTypeColFound).Value))
+                If IsNumeric(ws.Cells(r, specAmtColFound).Value) Then specAmtVal = CDbl(ws.Cells(r, specAmtColFound).Value)
+            End If
+
+            ' ALL always forces the marker, even if rounding puts the
+            ' computed dollar amount a hair under the liquidation threshold.
+            isForcedAll = (fmv > 0 And raiseAmt >= fmv * fullLiqThresh) Or (amtType = "ALL")
+
             fullLiqHTML = "": fullLiqPlain = ""
-            If fmv > 0 And raiseAmt >= fmv * fullLiqThresh Then
+            If isForcedAll Then
                 fullLiqHTML = " <i>*SELLING ALL of this position*</i>"
                 fullLiqPlain = " *SELLING ALL of this position*"
             End If
-            sellLinesHTML = sellLinesHTML & "<li>$" & Format(raiseAmt, "#,##0") & _
-                            "&#9;<b>" & ticker & "</b>" & fullLiqHTML & "</li>" & vbCrLf
-            sellLinesPlain = sellLinesPlain & "   * $" & Format(raiseAmt, "#,##0") & _
-                             vbTab & ticker & fullLiqPlain & vbCrLf
+
+            Select Case amtType
+                Case "Shares"
+                    sellLinesHTML = sellLinesHTML & "<li>Sell " & FormatSpecAmtEmail(specAmtVal) & _
+                                    " shares of <b>" & ticker & "</b> (~$" & Format(raiseAmt, "#,##0") & _
+                                    ")" & fullLiqHTML & "</li>" & vbCrLf
+                    sellLinesPlain = sellLinesPlain & "   * Sell " & FormatSpecAmtEmail(specAmtVal) & _
+                                     " shares of " & ticker & " (~$" & Format(raiseAmt, "#,##0") & _
+                                     ")" & fullLiqPlain & vbCrLf
+                Case "% Pos"
+                    sellLinesHTML = sellLinesHTML & "<li>Sell " & FormatSpecAmtEmail(specAmtVal) & _
+                                    "% of <b>" & ticker & "</b> (~$" & Format(raiseAmt, "#,##0") & _
+                                    ")" & fullLiqHTML & "</li>" & vbCrLf
+                    sellLinesPlain = sellLinesPlain & "   * Sell " & FormatSpecAmtEmail(specAmtVal) & _
+                                     "% of " & ticker & " (~$" & Format(raiseAmt, "#,##0") & _
+                                     ")" & fullLiqPlain & vbCrLf
+                Case "% Acct"
+                    sellLinesHTML = sellLinesHTML & "<li>Sell " & FormatSpecAmtEmail(specAmtVal) & _
+                                    "% of account value from <b>" & ticker & "</b> (~$" & Format(raiseAmt, "#,##0") & _
+                                    ")" & fullLiqHTML & "</li>" & vbCrLf
+                    sellLinesPlain = sellLinesPlain & "   * Sell " & FormatSpecAmtEmail(specAmtVal) & _
+                                     "% of account value from " & ticker & " (~$" & Format(raiseAmt, "#,##0") & _
+                                     ")" & fullLiqPlain & vbCrLf
+                Case Else
+                    ' "$" spec type, Pool rows, ALL (marker already forced
+                    ' above), and legacy sheets without the spec columns.
+                    sellLinesHTML = sellLinesHTML & "<li>$" & Format(raiseAmt, "#,##0") & _
+                                    "&#9;<b>" & ticker & "</b>" & fullLiqHTML & "</li>" & vbCrLf
+                    sellLinesPlain = sellLinesPlain & "   * $" & Format(raiseAmt, "#,##0") & _
+                                     vbTab & ticker & fullLiqPlain & vbCrLf
+            End Select
         End If
     Next r
 
@@ -239,10 +299,43 @@ End If
         If resp = vbNo Then Exit Sub
     End If
 
+    ' --- PROCEEDS ROUTING (S2 only, when a PROCEEDS ROUTING block exists) ---
+    ' Replaces the legacy residual-destination prompt: the routing block
+    ' already states where every dollar of proceeds goes, so there is
+    ' nothing left to ask interactively. A routing block that does not
+    ' reconcile ("Routing OK") blocks the email outright - never email a
+    ' plan whose routing does not reconcile.
+    Dim usesRouting As Boolean
+    Dim routingDestCol As Long, routingDataStartRow As Long
+    usesRouting = False
+    If scenNum = PLAN_SCENARIO_NUM Then
+        Dim routingTitleCell As Range
+        Set routingTitleCell = FindRoutingTitleCellEmail(ws)
+        If Not routingTitleCell Is Nothing Then
+            routingDestCol = routingTitleCell.Column
+            routingDataStartRow = routingTitleCell.Row + 2
+            usesRouting = True
+        End If
+    End If
+
+    Dim routingParaHTML As String, routingParaPlain As String
+
     ' --- RESIDUAL DESTINATION ---
     Dim residualTicker As String, hasResidual As Boolean
     hasResidual = (residual >= RESIDUAL_TOLERANCE)
-    If hasResidual Then
+
+    If usesRouting Then
+        Dim routingStatusRow As Long, routingStatusText As String
+        routingStatusRow = routingDataStartRow + ROUTING_DATA_ROWS
+        routingStatusText = Trim(CStr(ws.Cells(routingStatusRow, routingDestCol).Value))
+        If routingStatusText <> "Routing OK" Then
+            MsgBox "Proceeds routing does not reconcile (" & routingStatusText & ")." & vbCrLf & _
+                   "Fix the PROCEEDS ROUTING block before emailing this plan.", vbExclamation
+            Exit Sub
+        End If
+        BuildRoutingNarrative ws, routingDestCol, routingDataStartRow, totalRaised, routingParaHTML, routingParaPlain
+        hasResidual = False
+    ElseIf hasResidual Then
         residualTicker = PromptResidualDestination(ws, totRow, residual, (buyCount > 0), defaultMM)
         If residualTicker = "" Then Exit Sub
     End If
@@ -271,6 +364,8 @@ End If
 
     If hasResidual Then
         summaryText = summaryText & vbCrLf & "RESIDUAL: $" & Format(residual, "#,##0") & " to " & residualTicker & " (money market)" & vbCrLf
+    ElseIf usesRouting And routingParaPlain <> "" Then
+        summaryText = summaryText & vbCrLf & "ROUTING: " & routingParaPlain & vbCrLf
     End If
 
     If isV12Plan And buyCount > 0 Then
@@ -283,7 +378,9 @@ End If
 
     summaryText = summaryText & vbCrLf & vbCrLf & "Generate email?"
 
-    If MsgBox(summaryText, vbYesNo + vbQuestion, "Confirm Trade Email - S" & scenNum) = vbNo Then Exit Sub
+    If Not automationMode Then
+        If MsgBox(summaryText, vbYesNo + vbQuestion, "Confirm Trade Email - S" & scenNum) = vbNo Then Exit Sub
+    End If
 
     ' --- BUILD MESSAGE ---
     Dim totalK As String
@@ -320,6 +417,8 @@ End If
             htmlBody = htmlBody & "This will result in " & totalK & " of proceeds"
         End If
         htmlBody = htmlBody & " &ndash; please place into <b>" & residualTicker & "</b> (money market).</p>" & vbCrLf
+    ElseIf usesRouting And routingParaHTML <> "" Then
+        htmlBody = htmlBody & "<p style='font-family:Calibri;font-size:11pt;'>" & routingParaHTML & "</p>" & vbCrLf
     End If
 
     htmlBody = htmlBody & "<p style='font-family:Calibri;font-size:11pt;'>" & signoff & "</p>"
@@ -337,8 +436,21 @@ End If
             plainText = plainText & "This will result in " & totalK & " of proceeds"
         End If
         plainText = plainText & " - please place into " & residualTicker & " (money market)." & vbCrLf
+    ElseIf usesRouting And routingParaPlain <> "" Then
+        plainText = plainText & vbCrLf & routingParaPlain & vbCrLf
     End If
     plainText = plainText & vbCrLf & signoff
+
+    ' --- AUTOMATION MODE PREVIEW ---
+    ' Skips the confirm dialog (already skipped above) and Outlook entirely;
+    ' writes subject + full plain-text body to a preview sheet instead. Lets
+    ' the headless harness (and any advisor who wants to eyeball the exact
+    ' text first) see the generated email without Outlook running.
+    If automationMode Then
+        WriteEmailPreviewSheet ws.Parent, ws, subjectLine, plainText
+        OfferSaveSnapshot
+        Exit Sub
+    End If
 
     ' --- OPEN IN OUTLOOK ---
     Dim olApp As Object, olMail As Object
@@ -367,6 +479,7 @@ End If
 
     Set olMail = Nothing
     Set olApp = Nothing
+    OfferSaveSnapshot
     Exit Sub
 
 ErrHandler:
@@ -508,3 +621,124 @@ End Function
 Private Function ColLetter(colNum As Long) As String
     ColLetter = Split(Columns(colNum).Address(, False), ":")(0)
 End Function
+
+' ============================================================
+' SPEC-FAITHFUL SELL NARRATION + PROCEEDS ROUTING (W10)
+' ============================================================
+
+' VBA's Format(v, "#,##0.##") leaves a trailing "." on whole numbers
+' (e.g. 50 -> "50."). Drop the decimal places entirely when the spec
+' amount (share count or percentage) has no fractional part.
+Private Function FormatSpecAmtEmail(v As Double) As String
+    If v = Int(v) Then
+        FormatSpecAmtEmail = Format(v, "#,##0")
+    Else
+        FormatSpecAmtEmail = Format(v, "#,##0.##")
+    End If
+End Function
+
+Private Function FindModeColEmail(ws As Worksheet) As Long
+    Dim c As Range
+    On Error Resume Next
+    Set c = ws.Cells.Find(What:="Sell Mode", _
+                          LookIn:=xlValues, _
+                          LookAt:=xlWhole, _
+                          SearchOrder:=xlByRows, _
+                          SearchDirection:=xlNext, _
+                          MatchCase:=False)
+    On Error GoTo 0
+    If Not c Is Nothing Then FindModeColEmail = c.Column
+End Function
+
+Private Function FindRoutingTitleCellEmail(ws As Worksheet) As Range
+    On Error Resume Next
+    Set FindRoutingTitleCellEmail = ws.Cells.Find(What:="PROCEEDS ROUTING", _
+                                                  LookIn:=xlValues, _
+                                                  LookAt:=xlWhole, _
+                                                  SearchOrder:=xlByRows, _
+                                                  SearchDirection:=xlNext, _
+                                                  MatchCase:=False)
+    On Error GoTo 0
+End Function
+
+' Narrates each PROCEEDS ROUTING row with Routed $ > tolerance into a single
+' paragraph (HTML and plain-text in parallel). Buy Plan introduces the
+' existing BUY: list ("the purchases below"); Money Market/Transfer
+' Out/Hold in Cash each get their own sentence.
+Private Sub BuildRoutingNarrative(ws As Worksheet, destCol As Long, dataStartRow As Long, _
+                                  totalRaisedAmt As Double, ByRef paraHTML As String, ByRef paraPlain As String)
+    Dim detailCol As Long, routedCol As Long
+    detailCol = destCol + 1
+    routedCol = destCol + 4
+
+    Dim rr As Long, dest As String, detail As String, routed As Double, sentence As String
+    paraHTML = ""
+    paraPlain = ""
+
+    For rr = dataStartRow To dataStartRow + ROUTING_DATA_ROWS - 1
+        dest = Trim(CStr(ws.Cells(rr, destCol).Value))
+        detail = Trim(CStr(ws.Cells(rr, detailCol).Value))
+        routed = 0
+        If IsNumeric(ws.Cells(rr, routedCol).Value) Then routed = CDbl(ws.Cells(rr, routedCol).Value)
+
+        If routed > RESIDUAL_TOLERANCE Then
+            sentence = ""
+            Select Case dest
+                Case "Buy Plan"
+                    sentence = "Of the ~$" & Format(totalRaisedAmt, "#,##0") & " raised: $" & _
+                               Format(routed, "#,##0") & " funds the purchases below."
+                Case "Money Market"
+                    sentence = "$" & Format(routed, "#,##0") & " remains in " & detail & " (money market)."
+                Case "Transfer Out"
+                    sentence = "$" & Format(routed, "#,##0") & " to be transferred out (" & detail & ")."
+                Case "Hold in Cash"
+                    sentence = "$" & Format(routed, "#,##0") & " holds as cash pending further instruction."
+            End Select
+
+            If sentence <> "" Then
+                If paraPlain <> "" Then paraPlain = paraPlain & " "
+                paraPlain = paraPlain & sentence
+                If paraHTML <> "" Then paraHTML = paraHTML & " "
+                paraHTML = paraHTML & sentence
+            End If
+        End If
+    Next rr
+End Sub
+
+' AutomationMode=1 hook: writes subject (A1) + full plain-text body (A2, one
+' cell) to a "CDS Email Preview" sheet instead of creating an Outlook item,
+' then re-activates the source sheet.
+Private Sub WriteEmailPreviewSheet(wb As Workbook, sourceWs As Worksheet, subjectLine As String, bodyText As String)
+    Dim previewWs As Worksheet
+    On Error Resume Next
+    Set previewWs = wb.Sheets("CDS Email Preview")
+    On Error GoTo 0
+
+    If previewWs Is Nothing Then
+        Set previewWs = wb.Sheets.Add(After:=wb.Sheets(wb.Sheets.Count))
+        previewWs.Name = "CDS Email Preview"
+    Else
+        previewWs.Cells.Clear
+    End If
+
+    previewWs.Cells(1, 1).Value = subjectLine
+    previewWs.Cells(2, 1).Value = bodyText
+
+    sourceWs.Activate
+End Sub
+
+' ============================================================
+' POST-EMAIL SNAPSHOT OFFER (W9)
+' ============================================================
+
+' Fires after both the Outlook .Display success path and the
+' AutomationMode preview success path. A snapshot is a values-only
+' archive of the plan that was just emailed - useful months later
+' ("how did we raise the 200k last time"). Never blocking: declining
+' just skips it. Headless shims answer vbYes, so tests exercise the
+' snapshot path here too.
+Private Sub OfferSaveSnapshot()
+    If MsgBox("Save a snapshot of this plan for the record?", vbYesNo + vbQuestion, "CDS Snapshot") = vbYes Then
+        SaveCDSSnapshot
+    End If
+End Sub

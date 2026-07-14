@@ -5,6 +5,10 @@ Public Sub RunTradeAssistant(ctl As IRibbonControl)
     OpenCDSTradeAssistant
 End Sub
 
+Public Sub RunNewSession(ctl As IRibbonControl)
+    RunMacroById "new_session"
+End Sub
+
 Public Sub RunProcess(ctl As IRibbonControl)
     RunMacroById "process_holdings"
 End Sub
@@ -19,6 +23,10 @@ End Sub
 
 Public Sub RunPlanSells(ctl As IRibbonControl)
     RunMacroById "plan_sells"
+End Sub
+
+Public Sub RunBuildRouting(ctl As IRibbonControl)
+    RunMacroById "build_routing"
 End Sub
 
 Public Sub RunSpawn(ctl As IRibbonControl)
@@ -39,6 +47,18 @@ End Sub
 
 Public Sub RunEmail(ctl As IRibbonControl)
     RunMacroById "generate_email"
+End Sub
+
+Public Sub RunRefreshPrices(ctl As IRibbonControl)
+    RunMacroById "refresh_prices"
+End Sub
+
+Public Sub RunSaveSnapshot(ctl As IRibbonControl)
+    RunMacroById "save_snapshot"
+End Sub
+
+Public Sub RunExportSnapshot(ctl As IRibbonControl)
+    RunMacroById "export_snapshot"
 End Sub
 
 Public Sub RunOpenSettings(ctl As IRibbonControl)

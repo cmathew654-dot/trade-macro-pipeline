@@ -15,6 +15,13 @@
         </group>
 
         <group id="grpStart" label="Start">
+          <button id="btnNewSession"
+                  label="New Session"
+                  size="large"
+                  imageMso="FileNew"
+                  onAction="RunNewSession"
+                  screentip="Start a new client session"
+                  supertip="Freeze the current live report to a dated snapshot, then import a fresh Client Center CSV and process it as the new live report."/>
           <button id="btnProcess"
                   label="Process Holdings"
                   size="large"
@@ -42,6 +49,13 @@
                   onAction="RunPlanSells"
                   screentip="Create the sell workbench"
                   supertip="Preview and create the proposed sell workbench: one target raise amount, Pool/Manual/Exclude row choices, and live S2 proposed allocation."/>
+          <button id="btnBuildRouting"
+                  label="Proceeds Routing"
+                  size="large"
+                  imageMso="TableInsert"
+                  onAction="RunBuildRouting"
+                  screentip="Route the plan's proceeds"
+                  supertip="Preview and add/rebuild the PROCEEDS ROUTING table for the plan scenario: declare how much of the raise funds buys, stays in money market, transfers out, or holds as cash."/>
           <button id="btnAddScenarios"
                   label="Add Scenarios"
                   size="normal"
@@ -90,6 +104,30 @@
                   onAction="RunEmail"
                   screentip="Generate trade email"
                   supertip="Preview and validate scenario trades, then show the confirmation before Outlook is used."/>
+        </group>
+
+        <group id="grpReference" label="Reference">
+          <button id="btnRefreshPrices"
+                  label="Refresh Live Prices"
+                  size="large"
+                  imageMso="RefreshAll"
+                  onAction="RunRefreshPrices"
+                  screentip="Check live prices against the report"
+                  supertip="Preview and check live quotes against the export's implied prices on a CDS Live Prices sheet, flagging tickers drifted past the alert threshold. Never modifies holdings values."/>
+          <button id="btnSaveSnapshot"
+                  label="Save Snapshot"
+                  size="large"
+                  imageMso="CreateReportFromWizard"
+                  onAction="RunSaveSnapshot"
+                  screentip="Freeze this plan to a snapshot"
+                  supertip="Preview and freeze this plan to a values-only, protected SNAP sheet, logged in the CDS Snapshots index for future reference."/>
+          <button id="btnExportSnapshot"
+                  label="Export Snapshot"
+                  size="large"
+                  imageMso="FileSaveAsWebPage"
+                  onAction="RunExportSnapshot"
+                  screentip="Export the active snapshot"
+                  supertip="Preview and save the active snapshot sheet as a standalone .xlsx file under Snapshots\."/>
         </group>
 
         <group id="grpSettings" label="Settings">

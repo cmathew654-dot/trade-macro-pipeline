@@ -154,6 +154,8 @@ Public Sub ApplyScenarioUXRulesToSheet(ws As Worksheet)
     UnlockScenarioSummaryInputs ws
     UnlockTaxInputs ws, totRow
     UnlockBuyPlanInputs ws, totRow, scenCount
+    UnlockSellWorkbenchInputs ws, dataStart, dataEnd
+    UnlockRoutingInputs ws
 
     Application.Calculate
 
@@ -445,6 +447,101 @@ Private Sub UnlockBuyPlanInputs(ws As Worksheet, totRow As Long, scenCount As Lo
 
 SafeExit:
 End Sub
+
+' ============================================================
+' SELL WORKBENCH AMOUNT-SPEC UNLOCK
+'
+' BuildSellWorkbench unlocks its own input cells when it runs, but any
+' later macro (Spawn Scenario, Remove Scenario, Add Buy Plans) reruns
+' ApplyScenarioUXRulesToSheet, which locks the ENTIRE sheet and then only
+' re-unlocks the ranges this module knows about. Without this unlock,
+' Sell Mode / Amt Type / Amount go read-only after the next macro run.
+' Manual Sell $ is a formula column now, so it stays locked.
+' ============================================================
+
+Private Sub UnlockSellWorkbenchInputs(ws As Worksheet, dataStart As Long, dataEnd As Long)
+    On Error GoTo SafeExit
+
+    Dim modeCol As Long
+    modeCol = FindSellWorkbenchModeCol_UX(ws)
+
+    If modeCol = 0 Then Exit Sub
+
+    ' Column order from BuildSellWorkbench: Sell Mode | Amt Type | Amount | Manual Sell $
+    Dim specTypeCol As Long
+    Dim specAmtCol As Long
+    Dim manualCol As Long
+
+    specTypeCol = modeCol + 1
+    specAmtCol = modeCol + 2
+    manualCol = modeCol + 3
+
+    ws.Range(ws.Cells(dataStart, modeCol), ws.Cells(dataEnd, modeCol)).Locked = False
+    ws.Range(ws.Cells(dataStart, specTypeCol), ws.Cells(dataEnd, specTypeCol)).Locked = False
+    ws.Range(ws.Cells(dataStart, specAmtCol), ws.Cells(dataEnd, specAmtCol)).Locked = False
+    ws.Range(ws.Cells(dataStart, manualCol), ws.Cells(dataEnd, manualCol)).Locked = True
+
+SafeExit:
+End Sub
+
+' ============================================================
+' PROCEEDS ROUTING UNLOCK
+'
+' CDS_Routing.bas writes Destination/Detail/Spec/Amount (rows 12-16)
+' unlocked when it builds the block, but ApplyScenarioUXRulesToSheet
+' locks the ENTIRE sheet on every run before re-unlocking known ranges.
+' Without this, routing inputs go read-only after the next macro run
+' (Spawn Scenario, Remove Scenario, Add Buy Plans). Routed $ and the
+' status row stay locked - they are formulas.
+' ============================================================
+
+Private Sub UnlockRoutingInputs(ws As Worksheet)
+    On Error GoTo SafeExit
+
+    Dim c As Range
+    Set c = FindRoutingTitleCell_UX(ws)
+
+    If c Is Nothing Then Exit Sub
+
+    Dim destCol As Long
+    destCol = c.Column
+
+    Dim dataStart As Long
+    Dim dataEnd As Long
+    dataStart = c.Row + 2
+    dataEnd = dataStart + 4
+
+    ws.Range(ws.Cells(dataStart, destCol), ws.Cells(dataEnd, destCol + 3)).Locked = False
+    ws.Range(ws.Cells(dataStart, destCol + 4), ws.Cells(dataEnd, destCol + 4)).Locked = True
+
+SafeExit:
+End Sub
+
+Private Function FindRoutingTitleCell_UX(ws As Worksheet) As Range
+    On Error Resume Next
+    Set FindRoutingTitleCell_UX = ws.Cells.Find(What:="PROCEEDS ROUTING", _
+                                                LookIn:=xlValues, _
+                                                LookAt:=xlWhole, _
+                                                SearchOrder:=xlByRows, _
+                                                SearchDirection:=xlNext, _
+                                                MatchCase:=False)
+    On Error GoTo 0
+End Function
+
+Private Function FindSellWorkbenchModeCol_UX(ws As Worksheet) As Long
+    Dim c As Range
+
+    On Error Resume Next
+    Set c = ws.Cells.Find(What:="Sell Mode", _
+                          LookIn:=xlValues, _
+                          LookAt:=xlWhole, _
+                          SearchOrder:=xlByRows, _
+                          SearchDirection:=xlNext, _
+                          MatchCase:=False)
+    On Error GoTo 0
+
+    If Not c Is Nothing Then FindSellWorkbenchModeCol_UX = c.Column
+End Function
 
 ' ============================================================
 ' DETECTION HELPERS

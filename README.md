@@ -1,6 +1,6 @@
 # CDS Trade Assistant
 
-Excel VBA macros for turning a custodial holdings CSV into a reviewed CDS trade-planning workbook: holdings normalization, unknown ticker review, raise-cash scenarios, a sell workbench that speaks the client's language ($ / shares / % of position / % of account / sell-all), proceeds routing, buy plans, price staleness checks, math audit, draft trade email generation, and values-frozen snapshots for the record.
+Excel VBA macros for turning a custodial holdings CSV into a reviewed CDS trade-planning workbook: holdings normalization, unknown ticker review, raise-cash scenarios, a sell workbench that speaks the client's language ($ / shares / % of position / % of account / sell-all), proceeds routing, buy plans, math audit, draft trade email generation, and values-frozen snapshots for the record.
 
 I built this as a practicing financial advisor (Series 7/63/65) for a workflow where the advisor stays in Excel, reviews every assumption, and keeps final trade judgment manual.
 
@@ -25,7 +25,6 @@ flowchart LR
     F --> G["7 · Math audit"]
     G --> H["8 · Trade email<br/>draft for review"]
     H --> S["9 · Snapshot<br/>frozen for the record"]
-    P["Live price check<br/>drift alerts"] -.-> E
 ```
 
 **1 — Processed holdings.** The raw export becomes a normalized sheet: asset-class grouping, gain/loss math, yield, an allocation pivot, and a short-position callout.
@@ -46,7 +45,6 @@ The full workbench in one strip: [docs/media/pipeline-full.png](docs/media/pipel
 - `vba/CDS_Sell_Workbench.bas` - worksheet-native sell planning: each manual sell can be expressed as dollars, share count, % of position, % of account, or ALL; shortfall and cash-available advisories; illiquid CUSIP positions default out of the pool.
 - `vba/CDS_Routing.bas` - PROCEEDS ROUTING table: declare how much of the raise funds buys, stays in money market, transfers out, or holds as cash, with reconciliation status.
 - `vba/CDS_Buy_Plans.bas` - builds scenario-funded and cash-only buy plans; the plan scenario funds from its routed allocation.
-- `vba/CDS_PriceGuard.bas` - checks live quotes (Excel Stocks linked data types) against the export's implied prices and flags drifted tickers; never modifies holdings values.
 - `vba/CDS_Trade_Email.bas` - drafts a reviewed trade email that narrates the instruction as given (shares/percent/sell-all language, routing destinations); refuses while routing does not reconcile; it does not send automatically.
 - `vba/CDS_Snapshots.bas` - freezes a plan to a values-only, protected SNAP sheet with a queryable CDS Snapshots index; exports snapshots to standalone .xlsx.
 - `vba/CDS_Session.bas` - rolls a workbook from one meeting to the next: freezes the current live report, removes it, imports a fresh Client Center CSV as the new live report, and processes it.
@@ -70,7 +68,6 @@ Each workbook is meant to be one client's history file: a `CDS Snapshots` index 
 - `BuildRoutingBlock`
 - `AddBuyPlans`
 - `AddCashOnlyBuyPlan`
-- `RefreshLivePrices`
 - `GenerateTradeEmail`
 - `SaveCDSSnapshot` / `ExportSnapshotToFile`
 - `StartNewSession`
@@ -82,7 +79,7 @@ Each workbook is meant to be one client's history file: a `CDS Snapshots` index 
 
 ## Safety model
 
-- Runs locally inside Excel; no backend and no external API calls. The optional live-price check uses Excel's built-in Stocks linked data types (Microsoft's own quote feed, requires a Microsoft 365 license that includes data types) and only ever reads quotes - imported holdings values are never modified.
+- Runs locally inside Excel; no backend, external API calls, or market-data retrieval. All calculations use values imported from the custodial CSV or entered by the advisor.
 - Uses synthetic sample data in this repository; no real client holdings are included.
 - The email workflow prepares a draft/review surface only; it does not auto-send, and it refuses to generate while the proceeds routing does not reconcile.
 - The wash-sale flag covers this workbook only: a loss sale whose ticker reappears in a buy plan is flagged, but purchases in outside accounts (a 401(k), a spouse's account) are invisible to any tool working from a single holdings export. That boundary is by design and worth remembering.
@@ -111,7 +108,7 @@ python tests/verify_wash_flag.py             # wash-sale flagging
 python tests/verify_email.py                 # instruction-faithful email + refusal path
 python tests/verify_snapshots.py             # frozen snapshots + index
 python tests/verify_new_session.py           # per-client session rollover (freeze, remove, re-import)
-python tests/verify_price_guard.py           # drift alerts (tolerates offline)
+python tests/verify_no_live_market_data.py   # source boundary: no external market-data integration
 ```
 
 `tests/TestShims.bas` shadows `MsgBox`/`InputBox` during test runs so nothing blocks; it is never imported into a production workbook.

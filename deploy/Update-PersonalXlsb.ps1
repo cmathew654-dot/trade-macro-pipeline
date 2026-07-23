@@ -81,7 +81,7 @@ function Get-ModuleName([string]$file) {
 }
 
 $excel = $null; $excelPid = 0
-$replaced = @(); $added = @()
+$replaced = @(); $added = @(); $removed = @()
 try {
     $excel = New-Object -ComObject Excel.Application
     $excel.Visible = $false
@@ -92,6 +92,18 @@ try {
     try { $proj = $wb.VBProject } catch {
         throw 'Cannot access the VBA project. Enable File > Options > Trust Center > Macro Settings > "Trust access to the VBA project object model", then re-run.'
     }
+    $obsoleteModuleNames = @('CDS_' + 'PriceGuard')
+    foreach ($obsoleteName in $obsoleteModuleNames) {
+        $obsolete = $null
+        foreach ($comp in @($proj.VBComponents)) {
+            if ($comp.Name -eq $obsoleteName) { $obsolete = $comp; break }
+        }
+        if ($obsolete) {
+            $proj.VBComponents.Remove($obsolete)
+            $removed += $obsoleteName
+        }
+    }
+
 
     # everything except the document module
     $sources  = @(Get-ChildItem (Join-Path $vbaDir '*.bas'))
@@ -150,6 +162,7 @@ Write-Host ''
 Write-Host '=== UPDATE COMPLETE ==='
 Write-Host ("Replaced ({0}): {1}" -f $replaced.Count, ($replaced -join ', '))
 Write-Host ("Added    ({0}): {1}" -f $added.Count, ($added -join ', '))
+Write-Host ("Removed  ({0}): {1}" -f $removed.Count, ($removed -join ', '))
 Write-Host "Ribbon: $ribbonStatus"
 Write-Host "Backup: $backup"
-Write-Host 'Open Excel and run the CDS launcher to confirm, then run Verify-LivePrices.ps1.'
+Write-Host 'Open Excel and run the CDS launcher to confirm the remaining pipeline.'

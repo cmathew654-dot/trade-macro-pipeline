@@ -77,9 +77,8 @@ Private Sub BuildAssistantUI()
     AddButton "cmdCloseSettings", "Close Settings", "close_settings", 389, 620, 112, 30, False
 
     AddLabel "lblReference", "REFERENCE", 266, 662, 235, 18, True, 8, RGB(180, 197, 207)
-    AddButton "cmdRefreshPrices", "Refresh Live Prices", "refresh_prices", 266, 686, 235, 28, False
-    AddButton "cmdSaveSnapshot", "Save Snapshot", "save_snapshot", 266, 720, 112, 28, False
-    AddButton "cmdExportSnapshot", "Export Snapshot", "export_snapshot", 389, 720, 112, 28, False
+    AddButton "cmdSaveSnapshot", "Save Snapshot", "save_snapshot", 266, 686, 112, 28, False
+    AddButton "cmdExportSnapshot", "Export Snapshot", "export_snapshot", 389, 686, 112, 28, False
 
     AddButton "cmdClose", "Close", "close", 16, 762, 485, 28, False
 End Sub
@@ -209,7 +208,6 @@ Private Sub RefreshAssistantStatus()
     UpdateButtonState "cmdEmail", "generate_email"
     UpdateButtonState "cmdOpenSettings", "open_settings"
     UpdateButtonState "cmdCloseSettings", "close_settings"
-    UpdateButtonState "cmdRefreshPrices", "refresh_prices"
     UpdateButtonState "cmdSaveSnapshot", "save_snapshot"
     UpdateButtonState "cmdExportSnapshot", "export_snapshot"
 

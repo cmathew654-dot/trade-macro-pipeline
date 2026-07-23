@@ -49,10 +49,6 @@ Public Sub RunEmail(ctl As IRibbonControl)
     RunMacroById "generate_email"
 End Sub
 
-Public Sub RunRefreshPrices(ctl As IRibbonControl)
-    RunMacroById "refresh_prices"
-End Sub
-
 Public Sub RunSaveSnapshot(ctl As IRibbonControl)
     RunMacroById "save_snapshot"
 End Sub

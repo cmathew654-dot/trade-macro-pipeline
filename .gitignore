@@ -20,5 +20,6 @@ dist/
 *.old
 Downloads/
 .vscode/
+.worktrees/
 .DS_Store
 Thumbs.db

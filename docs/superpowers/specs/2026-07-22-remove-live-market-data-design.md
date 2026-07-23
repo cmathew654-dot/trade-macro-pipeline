@@ -42,6 +42,7 @@ That process is self-referential and workbook-local. It does not retrieve extern
 - Remove the live-price stage, module description, entrypoint, safety explanation, test command, and related language from `README.md`.
 - Remove live-price deployment steps from `deploy/README.md`.
 - Rewrite snapshot comments in `vba/CDS_Snapshots.bas` so they describe freezing formulas and external links generically without referencing `FIELDVALUE` or linked data types.
+- Update `deploy/Update-PersonalXlsb.ps1` so the next normal deployment removes the obsolete market-data module from an existing `PERSONAL.XLSB` before importing the remaining CDS modules.
 
 ## Preserved Functionality
 
@@ -81,6 +82,7 @@ No component will request, convert, query, or refresh market information from an
 - Existing Git history, tags, branch identities, and remote commits will not be rewritten.
 - The removal will be implemented as new commits on the current branch.
 - No force-push, rebase, filter-repo operation, or destructive remote action is permitted.
+- The normal backed-up `PERSONAL.XLSB` deployment flow will remove the obsolete market-data module so an installed historical copy cannot remain callable.
 - Existing workbooks may still contain an old `CDS Live Prices` worksheet created by earlier versions. The updated pipeline will ignore it and will not refresh, read, or recreate it.
 - Existing `CDS_Settings` worksheets may retain a historical `DriftAlertPct` row. New source code will not create or read that setting. No migration macro is required.
 
@@ -119,8 +121,9 @@ Run the real headless Excel pipeline and all remaining focused regression script
 The change is complete when:
 
 1. All dedicated live-data artifacts and wiring are removed.
-2. The local static ticker-classification workflow is unchanged and tested.
-3. The banned-token regression test passes.
-4. The full Excel pipeline and every remaining focused regression script pass.
-5. The working tree contains no untracked removal artifacts.
-6. Git history and the remote remain untouched.
+2. The backed-up deployment updater prunes an installed historical market-data module.
+3. The local static ticker-classification workflow is unchanged and tested.
+4. The banned-token regression test passes.
+5. The full Excel pipeline and every remaining focused regression script pass.
+6. The working tree contains no untracked removal artifacts.
+7. Git history and the remote remain untouched.

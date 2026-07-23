@@ -77,9 +77,6 @@ Public Function RunMacroById(ByVal macroId As String) As Boolean
         Case "generate_email"
             GenerateTradeEmail
 
-        Case "refresh_prices"
-            RefreshLivePrices
-
         Case "save_snapshot"
             SaveCDSSnapshot
 
@@ -188,12 +185,6 @@ Public Function CanRunMacroById(ByVal macroId As String, ByRef reason As String)
                 reason = "Process a CDS holdings export first."
             End If
 
-        Case "refresh_prices"
-            If state = STATE_PROCESSED_CLEAN Or state = STATE_SCENARIOS Or state = STATE_BUY_PLANS Then
-                CanRunMacroById = True
-            Else
-                reason = "Process a CDS holdings export first."
-            End If
 
         Case "save_snapshot"
             If Left$(ws.Name, 5) = "SNAP " Then
@@ -276,9 +267,6 @@ Public Function GetMacroPreviewById(ByVal macroId As String) As String
             GetMacroPreviewById = summary & vbCrLf & vbCrLf & _
                 "Action: validate scenario trades and show the trade-email confirmation before Outlook."
 
-        Case "refresh_prices"
-            GetMacroPreviewById = summary & vbCrLf & vbCrLf & _
-                "Action: Checks live quotes against the export's implied prices on a CDS Live Prices sheet and flags tickers drifted past the alert threshold. Never modifies holdings values."
 
         Case "save_snapshot"
             GetMacroPreviewById = summary & vbCrLf & vbCrLf & _
@@ -376,7 +364,6 @@ Public Function MacroLabelById(ByVal macroId As String) As String
         Case "add_buy_plans": MacroLabelById = "Add Buy Plans"
         Case "cash_only_buy_plan": MacroLabelById = "Cash-Only Buy Plan"
         Case "generate_email": MacroLabelById = "Generate Trade Email"
-        Case "refresh_prices": MacroLabelById = "Refresh Live Prices"
         Case "save_snapshot": MacroLabelById = "Save Snapshot"
         Case "export_snapshot": MacroLabelById = "Export Snapshot"
         Case "new_session": MacroLabelById = "New Session (Import CSV)"

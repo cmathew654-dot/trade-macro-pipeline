@@ -107,13 +107,6 @@
         </group>
 
         <group id="grpReference" label="Reference">
-          <button id="btnRefreshPrices"
-                  label="Refresh Live Prices"
-                  size="large"
-                  imageMso="RefreshAll"
-                  onAction="RunRefreshPrices"
-                  screentip="Check live prices against the report"
-                  supertip="Preview and check live quotes against the export's implied prices on a CDS Live Prices sheet, flagging tickers drifted past the alert threshold. Never modifies holdings values."/>
           <button id="btnSaveSnapshot"
                   label="Save Snapshot"
                   size="large"

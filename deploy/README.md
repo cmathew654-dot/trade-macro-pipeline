@@ -15,21 +15,12 @@ the work machine — the zip in `Backups\` already has everything.
    ```
 
    What it does: backs up PERSONAL.XLSB next to itself
-   (`PERSONAL-backup-<timestamp>.xlsb`), replaces every CDS module + the
-   assistant form, replaces the embedded ribbon XML **only if one is already
-   embedded**, and restores your Trust Center setting afterwards. Your
-   `ThisWorkbook` code is never touched.
+   (`PERSONAL-backup-<timestamp>.xlsb`), prunes retired CDS modules, replaces
+   every remaining CDS module + the assistant form, replaces the embedded
+   ribbon XML **only if one is already embedded**, and restores your Trust
+   Center setting afterwards. Your `ThisWorkbook` code is never touched.
 
 3. Open Excel, run the CDS launcher once to confirm it loads.
-4. Verify live prices (the one thing the dev machine couldn't test):
-
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\Verify-LivePrices.ps1
-   ```
-
-   `PASS` → RefreshLivePrices is fully live. `FAIL` with a license message →
-   sign in to your M365 account inside Excel and re-run; until then the price
-   guard uses its (tested) graceful-degradation path.
 
 ## Rollback
 

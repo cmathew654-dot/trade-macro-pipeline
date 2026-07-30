@@ -295,7 +295,7 @@ End Sub
 Private Sub SeedShortTickers(ws As Worksheet, ByRef r As Long)
     WriteTicker ws, r, "CJTXX", "SHORT"
     WriteTicker ws, r, "LUBYX", "SHORT"
-    WriteTicker ws, r, "RJMXX", "SHORT"
+    WriteTicker ws, r, "SMMXX", "SHORT"
 End Sub
 
 Private Sub SeedBondTickers(ws As Worksheet, ByRef r As Long)

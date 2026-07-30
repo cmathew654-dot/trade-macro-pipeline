@@ -8,9 +8,8 @@ Option Explicit
 '   Freezes the active processed report into a dated, values-only
 '   archive sheet so the workbook still means something months
 '   later ("how did we raise the 200k last time", "what was the
-'   allocation drift in March"). Live features (price refresh,
-'   FIELDVALUE, formulas) make the working sheet mutable; a
-'   snapshot is a deliberate, non-live copy.
+'   allocation drift in March"). Formulas and workbook links make the
+'   working sheet mutable; a snapshot is a deliberate, non-live copy.
 '
 ' Public entries:
 '   SaveCDSSnapshot     - copy the active processed report, freeze
@@ -190,10 +189,8 @@ Private Function SheetExistsSnap(wb As Workbook, nameIn As String) As Boolean
     SheetExistsSnap = Not s Is Nothing
 End Function
 
-' Freezes every formula (including any FIELDVALUE / linked-data-type
-' remnants) to a plain value. Run twice: a single UsedRange.Value=Value
-' pass can leave a linked-data-type cell still showing as "linked" even
-' though its displayed value is already static; a second pass clears it.
+' Freezes every formula and workbook-linked value to a plain value.
+' Run twice so copied cells are fully detached from mutable workbook state.
 Private Sub FreezeSheetToValues(ws As Worksheet)
     ' A live PivotTable anywhere in the UsedRange blocks a bulk
     ' Range.Value=Range.Value re-write for the WHOLE range (not just the

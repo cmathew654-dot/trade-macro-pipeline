@@ -234,7 +234,6 @@ Private Sub SeedSettingsSheet(ws As Worksheet)
     WriteSetting ws, r, "ScenarioStride", "6": r = r + 1
     WriteSetting ws, r, "FreezePanesAt", "D3": r = r + 1
     WriteSetting ws, r, "AutomationMode", "0": r = r + 1
-    WriteSetting ws, r, "DriftAlertPct", "1.0": r = r + 1
 
     ws.Columns("A").ColumnWidth = 22
     ws.Columns("B").ColumnWidth = 30
@@ -296,7 +295,7 @@ End Sub
 Private Sub SeedShortTickers(ws As Worksheet, ByRef r As Long)
     WriteTicker ws, r, "CJTXX", "SHORT"
     WriteTicker ws, r, "LUBYX", "SHORT"
-    WriteTicker ws, r, "RJMXX", "SHORT"
+    WriteTicker ws, r, "SMMXX", "SHORT"
 End Sub
 
 Private Sub SeedBondTickers(ws As Worksheet, ByRef r As Long)

@@ -1,4 +1,4 @@
-# CDS Trade Assistant
+# Trade Macro Pipeline
 
 An Excel/VBA workspace for turning a synthetic custodial holdings export into a reviewed trade-planning workbook. It covers holdings cleanup, raise-cash scenarios, sell instructions, proceeds routing, buy plans, workbook math checks, email drafting, and frozen snapshots.
 

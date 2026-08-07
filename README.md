@@ -1,5 +1,9 @@
 # Trade Macro Pipeline
 
+[![VBA](https://img.shields.io/badge/VBA-Excel_workbook-0B7285?style=flat-square)](vba/)
+[![Test harness](https://img.shields.io/badge/test_harness-Python_%2B_pywin32-2D3748?style=flat-square&logo=python&logoColor=white)](tests/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-6C757D?style=flat-square)](LICENSE)
+
 An Excel/VBA workspace for turning a synthetic custodial holdings export into a reviewed trade-planning workbook. It covers holdings cleanup, raise-cash scenarios, sell instructions, proceeds routing, buy plans, workbook math checks, email drafting, and frozen snapshots.
 
 I built it around a recurring wealth-management workflow: the analysis lives in Excel, the assumptions stay visible, and trade execution remains outside the tool.
@@ -14,6 +18,17 @@ I built it around a recurring wealth-management workflow: the analysis lives in 
 6. Draft an email for review and freeze a values-only snapshot.
 
 The workbook does not place trades or send email. It does not retrieve market data; calculations use values from the imported CSV or values entered in Excel.
+
+```mermaid
+flowchart TD
+  CSV["Custodial holdings CSV"] --> Proc["CDS_Holdings_Processor<br/>import + normalize"]
+  Proc --> Unk["CDS_Unknowns<br/>review unmapped tickers"]
+  Unk --> Scen["CDS_Raise_Cash_Scenarios<br/>CDS_Sell_Workbench"]
+  Scen --> Route["CDS_Routing<br/>reconcile proceeds"]
+  Route --> Buy["CDS_Buy_Plans<br/>scenario-funded + cash-only"]
+  Buy --> Audit["CDS_MathAudit<br/>math checks, wash-sale flag"]
+  Audit --> Out["CDS_Trade_Email draft<br/>CDS_Snapshots freeze"]
+```
 
 ## What is here
 

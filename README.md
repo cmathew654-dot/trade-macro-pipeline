@@ -30,6 +30,22 @@ flowchart TD
   Audit --> Out["CDS_Trade_Email draft<br/>CDS_Snapshots freeze"]
 ```
 
+## What it looks like
+
+Captured from a real Excel run of `tests/run_pipeline.py` over the synthetic fixture `sample-data/cds_holdings_raw_actual_export_shape.csv`.
+
+![Normalized holdings report](docs/media/holdings-normalized.png)
+
+Imported holdings after normalization: asset class, ticker, FMV, gain/loss, cost basis, income and yield, with the money-market position held out of the allocation total.
+
+![Raise-cash scenario with sell and buy plan](docs/media/raise-cash-scenarios.png)
+
+A $20,000 raise-cash scenario: pro-rata sell amounts per position, resulting allocation drift, income lost, and a buy plan reinvesting the proceeds.
+
+![Math audit output](docs/media/math-audit.png)
+
+The math audit re-derives every total, percentage and yield on the sheet and logs each check with its actual and expected value.
+
 ## What is here
 
 - `vba/CDS_Holdings_Processor.bas` imports and normalizes holdings.

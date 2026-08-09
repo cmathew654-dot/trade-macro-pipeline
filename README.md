@@ -36,7 +36,7 @@ The screenshots below come from a real Excel run of `tests/run_pipeline.py` usin
 
 ![Normalized holdings report](docs/media/holdings-normalized.png)
 
-Imported holdings after normalization: asset class, ticker, FMV, gain/loss, cost basis, income and yield, with the money-market position held out of the allocation total.
+I configured the normalized view to show asset class, ticker, FMV, gain/loss, cost basis, income and yield while leaving the money-market position out of the allocation total.
 
 ![Raise-cash scenario with sell and buy plan](docs/media/raise-cash-scenarios.png)
 

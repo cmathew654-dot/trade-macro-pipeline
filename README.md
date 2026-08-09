@@ -46,7 +46,7 @@ A $20,000 raise-cash scenario: pro-rata sell amounts per position, resulting all
 
 The math audit re-derives every total, percentage and yield on the sheet and logs each check with its actual and expected value.
 
-## What is here
+## Repository contents
 
 - `vba/CDS_Holdings_Processor.bas` imports and normalizes holdings.
 - `vba/CDS_Raise_Cash_Scenarios.bas` and `vba/CDS_Sell_Workbench.bas` build sell scenarios.

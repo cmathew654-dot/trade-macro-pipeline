@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXT_SUFFIXES = {".bas", ".cls", ".frm", ".md", ".py", ".ps1", ".xml", ".csv", ".txt"}
-FORBIDDEN_VENDORS = ("custodian", "advisory firm")
+FORBIDDEN_EMPLOYERS = ("summit financial group",)
 
 
 def main() -> None:
@@ -18,7 +18,7 @@ def main() -> None:
         if ".git" in path.parts or "__pycache__" in path.parts:
             continue
         text = path.read_text(encoding="utf-8", errors="replace").lower()
-        for phrase in FORBIDDEN_VENDORS:
+        for phrase in FORBIDDEN_EMPLOYERS:
             if phrase in text:
                 failures.append(f"{path.relative_to(ROOT)} contains {phrase!r}")
 

@@ -6,7 +6,7 @@
 
 An Excel/VBA workspace for turning a synthetic custodial holdings export into a reviewed trade-planning workbook. It covers holdings cleanup, raise-cash scenarios, sell instructions, proceeds routing, buy plans, workbook math checks, email drafting, and frozen snapshots.
 
-I built it around a recurring wealth-management workflow: the analysis lives in Excel, the assumptions stay visible, and trade execution remains outside the tool.
+I built it around a recurring wealth-management workflow in Excel, with every assumption visible. The tool prepares the analysis but leaves trade execution to the advisor.
 
 ## The flow
 
@@ -32,7 +32,7 @@ flowchart TD
 
 ## What it looks like
 
-Captured from a real Excel run of `tests/run_pipeline.py` over the synthetic fixture `sample-data/cds_holdings_raw_actual_export_shape.csv`.
+The screenshots below come from a real Excel run of `tests/run_pipeline.py` using the synthetic fixture `sample-data/cds_holdings_raw_actual_export_shape.csv`.
 
 ![Normalized holdings report](docs/media/holdings-normalized.png)
 
@@ -76,12 +76,12 @@ python tests/verify_no_live_market_data.py
 python tests/verify_public_portfolio.py
 ```
 
-`tests/TestShims.bas` prevents message boxes from blocking automated runs. It is used only by the test harness.
+The test harness alone uses `tests/TestShims.bas` to prevent message boxes from blocking automated runs.
 
 ## Boundaries
 
 - The repository contains source code and synthetic fixtures, not real holdings.
-- No external market-data integration is included.
+- The repository has no external market-data integration.
 - The email step creates a draft for review and never sends it.
 - Wash-sale checks can see only the workbook’s own sell and buy plans.
 - Values-only snapshots do not recalculate or become the active planning sheet.

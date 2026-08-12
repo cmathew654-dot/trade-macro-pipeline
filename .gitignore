@@ -21,5 +21,13 @@ dist/
 Downloads/
 .vscode/
 .worktrees/
+.agents/
+.claude/
+.codex/
+.planning/
+.ship/
+.superpowers/
+docs/codex/
+docs/superpowers/
 .DS_Store
 Thumbs.db

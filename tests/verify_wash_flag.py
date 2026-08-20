@@ -1,6 +1,5 @@
 """
-THROWAWAY verification script for the W8 wash-sale flag audit (AuditWashFlag)
-plus a spot-check that AuditSellSpecs / AuditRouting still produce PASS lines.
+Windows/Excel integration verification for the wash-sale flag audit.
 
 Flow: ProcessCDSHoldings -> AddRaiseCashScenarios -> BuildSellWorkbench ->
 force FCAVX (known loss position, G/L=-1036.12) to Manual/ALL -> put FCAVX

@@ -1,6 +1,5 @@
 """
-THROWAWAY verification script for the W1 amount-spec engine.
-Not part of the repo test suite -- lives in the scratchpad only.
+Windows/Excel integration verification for the amount-spec engine.
 
 Drives the same COM flow as tests/run_pipeline.py, but after
 BuildSellWorkbench it sets row-level amount specs (Shares / % Pos / ALL),

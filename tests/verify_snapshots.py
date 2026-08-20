@@ -1,6 +1,5 @@
 """
-THROWAWAY verification script for W9 (snapshot system). Not part of the
-repo test suite -- lives in the scratchpad only.
+Windows/Excel integration verification for the snapshot system.
 
 Flow: ProcessCDSHoldings -> classify unknowns -> AddRaiseCashScenarios (S1)
 -> BuildSellWorkbench (auto-creates S2 + default PROCEEDS ROUTING block) ->

@@ -76,6 +76,8 @@ python tests/verify_no_live_market_data.py
 python tests/verify_public_portfolio.py
 ```
 
+GitHub Actions runs the public-boundary checks. The Excel/pywin32 integration suite requires local Windows and Excel and is not run in GitHub Actions.
+
 The test harness alone uses `tests/TestShims.bas` to prevent message boxes from blocking automated runs.
 
 ## Boundaries

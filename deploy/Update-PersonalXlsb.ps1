@@ -15,7 +15,8 @@
   the hidden Excel instance it started itself.
 
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File .\Update-PersonalXlsb.ps1
+  From the deploy directory, run .\Update-PersonalXlsb.ps1 according to your
+  machine's script-execution policy; do not bypass that policy.
 #>
 param(
     [string]$PersonalPath = (Join-Path $env:APPDATA 'Microsoft\Excel\XLSTART\PERSONAL.XLSB'),

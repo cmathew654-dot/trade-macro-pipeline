@@ -34,10 +34,6 @@ flowchart TD
 
 The screenshots below come from a real Excel run of `tests/run_pipeline.py` using the synthetic fixture `sample-data/cds_holdings_raw_actual_export_shape.csv`.
 
-![Normalized holdings report](docs/media/holdings-normalized.png)
-
-I configured the normalized view to show asset class, ticker, FMV, gain/loss, cost basis, income and yield while leaving the money-market position out of the allocation total.
-
 ![Raise-cash scenario with sell and buy plan](docs/media/raise-cash-scenarios.png)
 
 A $20,000 raise-cash scenario: pro-rata sell amounts per position, resulting allocation drift, income lost, and a buy plan reinvesting the proceeds.
@@ -75,6 +71,8 @@ python tests/verify_new_session.py
 python tests/verify_no_live_market_data.py
 python tests/verify_public_portfolio.py
 ```
+
+GitHub Actions runs the public-boundary checks. The Excel/pywin32 integration suite requires local Windows and Excel and is not run in GitHub Actions.
 
 The test harness alone uses `tests/TestShims.bas` to prevent message boxes from blocking automated runs.
 

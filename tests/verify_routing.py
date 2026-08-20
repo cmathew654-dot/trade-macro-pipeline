@@ -1,6 +1,5 @@
 """
-THROWAWAY verification script for the W2 proceeds routing block.
-Not part of the repo test suite -- lives in the scratchpad only.
+Windows/Excel integration verification for the proceeds-routing block.
 
 Flow: ProcessCDSHoldings -> classify unknowns -> AddRaiseCashScenarios ->
 SpawnScenario (S3, done BEFORE BuildSellWorkbench since spawning clears/

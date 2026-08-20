@@ -1,7 +1,5 @@
 """
-THROWAWAY verification script for W10 (trade email narrates the plan
-faithfully). Not part of the repo test suite -- lives in the scratchpad
-only.
+Windows/Excel integration verification for the trade-email preview.
 
 Flow: ProcessCDSHoldings -> classify unknowns -> AddRaiseCashScenarios ->
 BuildSellWorkbench (auto-creates S2) -> set one Shares spec + one ALL spec

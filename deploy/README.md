@@ -1,17 +1,17 @@
-# Deploying to PERSONAL.XLSB (work machine)
+# Installing into a local PERSONAL.XLSB
 
-One-time update that syncs your production PERSONAL.XLSB to this repo's code.
-Carry the whole kit folder (contains `vba\`, `ribbon\`, and these scripts) to
-the work machine — the zip in `Backups\` already has everything.
+Optional local setup for a user-owned Excel profile. This updater copies the
+repository's code into your local PERSONAL.XLSB.
 
 ## Steps
 
 1. Close **all** Excel windows.
-2. In PowerShell:
+2. Keep a backup of PERSONAL.XLSB before updating it.
+3. From the `deploy` directory, run the script according to your machine's
+   script-execution policy; do not bypass that policy:
 
    ```powershell
-   cd <kit folder>\deploy   # or the kit root if the scripts sit next to vba\
-   powershell -ExecutionPolicy Bypass -File .\Update-PersonalXlsb.ps1
+   .\Update-PersonalXlsb.ps1
    ```
 
    What it does: backs up PERSONAL.XLSB next to itself
@@ -20,7 +20,7 @@ the work machine — the zip in `Backups\` already has everything.
    ribbon XML **only if one is already embedded**, and restores your Trust
    Center setting afterwards. Your `ThisWorkbook` code is never touched.
 
-3. Open Excel, run the CDS launcher once to confirm it loads.
+4. Open Excel, run the CDS launcher once to confirm it loads.
 
 ## Rollback
 

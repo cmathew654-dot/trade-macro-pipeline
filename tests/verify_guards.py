@@ -9,7 +9,7 @@ PERMANENT regression test for the CDS Trade Assistant guard features:
 
 Drives the same COM flow as tests/run_pipeline.py (import_vba, header/total-row
 finders, TestShims-answered dialogs) against sample-data/cds_holdings_raw_two_accounts.csv,
-which contains two accounts: XXXX-2026 (IWM, SPYV, ...) and XXXX-3031 (an 8-digit
+which contains two accounts: DEMO-1001 (IWM, SPYV, ...) and DEMO-2002 (an 8-digit
 numeric CUSIP bond + AAPL). TestShims.bas pops InputBox answers off a TestInputs
 sheet (col A, pointer B1); that sheet is created and populated BEFORE running any
 macro that prompts.
@@ -127,7 +127,7 @@ def main():
         qual = f"'{wb.Name}'!"
 
         # Queue the multi-account picker's answer BEFORE running ProcessCDSHoldings.
-        # "2" selects the second distinct account found (XXXX-3031).
+        # "2" selects the second distinct account found (DEMO-2002).
         data_ws = wb.ActiveSheet
         add_test_inputs_sheet(wb, ["2"])
         # Worksheets.Add() makes the new sheet active; ProcessCDSHoldings runs
@@ -141,7 +141,7 @@ def main():
         # --- Assertion 1: multi-account guard ---
         a1_stamp = str(ws.Cells(1, 1).Value or "").strip()
         assert_true("Multi-account guard: A1 stamped with the picked account",
-                     a1_stamp == "XXXX-3031", f"A1={a1_stamp!r} (expected XXXX-3031)")
+                     a1_stamp == "DEMO-2002", f"A1={a1_stamp!r} (expected DEMO-2002)")
 
         header_row = find_header_row(ws)
         data_start = header_row + 1

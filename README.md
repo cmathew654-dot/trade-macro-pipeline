@@ -34,10 +34,6 @@ flowchart TD
 
 The screenshots below come from a real Excel run of `tests/run_pipeline.py` using the synthetic fixture `sample-data/cds_holdings_raw_actual_export_shape.csv`.
 
-![Normalized holdings report](docs/media/holdings-normalized.png)
-
-I configured the normalized view to show asset class, ticker, FMV, gain/loss, cost basis, income and yield while leaving the money-market position out of the allocation total.
-
 ![Raise-cash scenario with sell and buy plan](docs/media/raise-cash-scenarios.png)
 
 A $20,000 raise-cash scenario: pro-rata sell amounts per position, resulting allocation drift, income lost, and a buy plan reinvesting the proceeds.
